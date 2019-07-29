@@ -248,6 +248,33 @@ def conv_only(convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)], **conv_kwargs):
         return out
     return network_fn
 
+@register("modified_conv_only")
+def modified_conv_only(convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)], **conv_kwargs):
+    def network_fn(X):
+        out = tf.cast(X, tf.float32) / 255.
+        with tf.variable_scope("convnet"):
+            for i, (num_outputs, kernel_size, stride) in enumerate(convs):
+                if i != len(convs) - 1:
+                    out = tf.contrib.layers.convolution2d(out,
+                                               num_outputs=num_outputs,
+                                               kernel_size=kernel_size,
+                                               stride=stride,
+                                               activation_fn=tf.nn.relu,
+                                               **conv_kwargs)
+                else:
+                    out = tf.contrib.layers.convolution2d(out,
+                                                          num_outputs=num_outputs,
+                                                          kernel_size=kernel_size,
+                                                          stride=stride,
+                                                          activation_fn=None,
+                                                          **conv_kwargs)
+                    f_features = tf.sigmoid(out)
+                    out = tf.nn.relu(out)
+
+        return out, f_features
+    return network_fn
+
+
 def _normalize_clip_observation(x, clip_range=[-5.0, 5.0]):
     rms = RunningMeanStd(shape=x.shape[1:])
     norm_x = tf.clip_by_value((x - rms.mean) / rms.std, min(clip_range), max(clip_range))
