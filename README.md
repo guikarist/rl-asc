@@ -23,7 +23,7 @@ brew install cmake openmpi
 ```
     
 ## Virtual environment
-From the general python package sanity perspective, it is a good idea to use virtual environments (virtualenvs) to make sure packages from different projects do not interfere with each other. You can install virtualenv (which is itself a pip package) via
+From the general python package sanity perspective, it is a good idea to use virtual environments (virtualenvs) to make sure packages from different projects do not interfere with each other (For using **Conda**, see the next paragraph). You can install virtualenv (which is itself a pip package) via
 ```bash
 pip install virtualenv
 ```
@@ -38,13 +38,20 @@ To activate a virtualenv:
 ```
 More thorough tutorial on virtualenvs and options can be found [here](https://virtualenv.pypa.io/en/stable/) 
 
-
 ## Installation
 - Clone the repo and cd into it:
     ```bash
     git clone https://github.com/openai/baselines.git
     cd baselines
     ```
+
+### Using Conda
+- This line will do all things for you including installing a CUDA package.
+    ```bash
+    conda env create -f env.yml
+    ```
+
+### Using Pip
 - If you don't have TensorFlow installed already, install your favourite flavor of TensorFlow. In most cases, 
     ```bash 
     pip install tensorflow-gpu # if you have a CUDA-compatible gpu and proper drivers
