@@ -45,10 +45,11 @@ More thorough tutorial on virtualenvs and options can be found [here](https://vi
     cd baselines
     ```
 
-### Using Conda
-- This line will do all things for you including installing a CUDA package.
+### Using Conda (Recommended)
+- These two lines will do all things for you including installing a CUDA package.
     ```bash
     conda env create -f env.yml
+    pip install 'gym[atari]'
     ```
 
 ### Using Pip
