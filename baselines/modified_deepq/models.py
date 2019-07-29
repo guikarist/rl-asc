@@ -9,7 +9,7 @@ def build_q_func(network, hiddens=[256], dueling=False, layer_norm=False, **netw
 
     def q_func_builder(input_placeholder, num_actions, scope, reuse=False):
         with tf.variable_scope(scope, reuse=reuse):
-            latent, f_feature = network(input_placeholder)
+            latent, f_features = network(input_placeholder)
             if isinstance(latent, tuple):
                 if latent[1] is not None:
                     raise NotImplementedError("DQN is not compatible with recurrent policies yet")
@@ -40,6 +40,6 @@ def build_q_func(network, hiddens=[256], dueling=False, layer_norm=False, **netw
                 q_out = state_score + action_scores_centered
             else:
                 q_out = action_scores
-            return q_out, f_feature
+            return q_out, f_features
 
     return q_func_builder

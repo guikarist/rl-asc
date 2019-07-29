@@ -215,12 +215,9 @@ def learn(env,
             env_action = action
             new_obs, rew, done, _ = env.step(env_action)
             # Store transition in the replay buffer.
-            if reset:
-                last_obs = obs
-                obs = new_obs
-                reset = False
-                continue
-            replay_buffer.new_add(last_obs, obs, action, rew, new_obs, float(done))
+            if not reset:
+                replay_buffer.new_add(last_obs, obs, action, rew, new_obs, float(done))
+            reset = False
             last_obs = obs
             obs = new_obs
 
@@ -241,6 +238,8 @@ def learn(env,
                 td_errors, representation_loss, loss = train(
                     obses_tm1, obses_t, actions, rewards, obses_tp1, dones, weights
                 )
+                print('repr_loss:', representation_loss)
+                print('loss:', loss)
                 if prioritized_replay:
                     new_priorities = np.abs(td_errors) + prioritized_replay_eps
                     replay_buffer.update_priorities(batch_idxes, new_priorities)

@@ -268,7 +268,7 @@ def modified_conv_only(convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)], **conv_kwargs
                                                           stride=stride,
                                                           activation_fn=None,
                                                           **conv_kwargs)
-                    f_features = tf.sigmoid(out)
+                    f_features = tf.sigmoid(tf.layers.flatten(out))
                     out = tf.nn.relu(out)
 
         return out, f_features
