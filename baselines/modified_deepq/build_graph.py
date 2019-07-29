@@ -291,12 +291,10 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
         td_error = q_t_selected - tf.stop_gradient(q_t_selected_target)
         errors = U.huber_loss(td_error)
         weighted_error = tf.reduce_mean(importance_weights_ph * errors)
-        representation_loss = lambda_ * tf.reduce_mean(tf.maximum(
-            tf.norm(f_features_t - f_features_tp1, axis=1) - tf.norm(
-                f_features_tm1 - f_features_tp1, axis=1) + margin,
-            0
-        ))
-        loss = weighted_error + representation_loss
+        f_error_1 = tf.reduce_sum(tf.square(f_features_t - f_features_tp1), 1)
+        f_error_2 = tf.reduce_sum(tf.square(f_features_tm1 - f_features_tp1), 1)
+        representation_loss = tf.reduce_mean(tf.maximum(0., margin + f_error_1 - f_error_2))
+        loss = weighted_error + lambda_ * representation_loss
 
         # compute optimization op (potentially with gradient clipping)
         if grad_norm_clipping is not None:
