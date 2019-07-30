@@ -10,7 +10,9 @@ def main():
     args = parser.parse_args()
     initial_max_load = 0.5
     initial_max_memory = 0.5
-    num_exps_each_epoch = 1 if args.only_modified_dqn else 2
+
+    modified_dqn_exps = [(x, y) for x in args.lambda_ for y in args.margin]
+    num_exps_each_epoch = len(modified_dqn_exps) if args.only_modified_dqn else len(modified_dqn_exps) + 1
     no_enough_cards = False
     num_launched_epochs = 0
 
@@ -27,32 +29,37 @@ def main():
         raise FileExistsError('The training directory already exists')
 
     for i in range(args.num_epochs):
-        while True:
-            available_cards = GPUtil.getAvailable(
+        need_dqn_exp = not args.only_modified_dqn
+        num_committed_exps = 0
+        while num_committed_exps < num_exps_each_epoch:
+            new_available_gpu = GPUtil.getAvailable(
                 order='first', limit=num_exps_each_epoch, maxLoad=initial_max_load, maxMemory=initial_max_memory
             )
-            if len(available_cards) >= num_exps_each_epoch:
-                break
+            if len(new_available_gpu) == 0:
+                if query_yes_no('No enough cards for one epoch (maxLoad={:.3}, maxMemory={:.3}), '
+                                'would you like to increase limit?'.format(initial_max_load, initial_max_memory)):
+                    initial_max_load += 0.1
+                    initial_max_memory += 0.1
 
-            if query_yes_no(
-                    'No enough cards for one epoch (maxLoad={:.3}, maxMemory={:.3}), '
-                    'would you like to increase limit?'.format(initial_max_load, initial_max_memory)):
-                initial_max_load += 0.1
-                initial_max_memory += 0.1
-            else:
-                no_enough_cards = True
-                break
+                    continue
+                else:
+                    no_enough_cards = True
+                    break
+
+            if need_dqn_exp:
+                execute_training('deepq', new_available_gpu.pop(), parent_directory, i, config)
+                need_dqn_exp = False
+                num_committed_exps += 1
+
+            while len(new_available_gpu) > 0 and len(modified_dqn_exps) > 0:
+                exp = modified_dqn_exps.pop()
+                execute_training(
+                    'modified_deepq', new_available_gpu.pop(), parent_directory, i, config, exp[0], exp[1]
+                )
+                num_committed_exps += 1
 
         if no_enough_cards:
             break
-
-        # Execute training process
-        if not args.only_modified_dqn:
-            execute_training('deepq', available_cards.pop(), parent_directory, i, config)
-        execute_training(
-            'modified_deepq', available_cards.pop(), parent_directory, i, config, args.lambda_,
-            args.margin
-        )
 
         num_launched_epochs += 1
 
@@ -86,10 +93,10 @@ modified_dqn_template = 'CUDA_VISIBLE_DEVICES={gpu_card} ' \
                         '>/dev/null 2>&1 &'
 
 parser = ArgumentParser()
-parser.add_argument('env', metavar='ENV', type=str, help='The game environment')
-parser.add_argument('num_steps', metavar='NUM_STEPS', type=float, help='The number of training steps')
-parser.add_argument('lambda_', metavar='LAMBDA', type=float, help='Hyper-parameter Lambda')
-parser.add_argument('margin', metavar='MARGIN', type=float, help='Hyper-parameter Margin')
+parser.add_argument('--env', type=str, help='The game environment', required=True)
+parser.add_argument('--num_steps', type=float, help='The number of training steps', required=True)
+parser.add_argument('--lambda', dest='lambda_', nargs='+', type=float, help='Hyper-parameter Lambda', required=True)
+parser.add_argument('--margin', nargs='+', type=float, help='Hyper-parameter Margin', required=True)
 parser.add_argument('--num_epochs', type=int, default=5, help='The number of training epochs')
 parser.add_argument('--print_freq', type=int, default=10, help='The frequency of printing logs')
 parser.add_argument('--only_modified_dqn', action='store_true', help='Whether to run original dqn experiment or not')
@@ -107,7 +114,6 @@ def execute_training(alg, gpu_card, parent_directory, num_epoch, config, lambda_
         config['lambda_'] = lambda_
         config['margin'] = margin
         os.system(modified_dqn_template.format(**config))
-
 
 
 def query_yes_no(question, default='yes'):
