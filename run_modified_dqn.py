@@ -21,7 +21,10 @@ def main():
         'num_steps': args.num_steps
     }
 
-    parent_directory = os.path.join(os.getcwd(), datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S'))
+    parent_directory = os.path.join(
+        os.getcwd(),
+        '-'.join([args.env, datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')])
+    )
     if not os.path.exists(parent_directory):
         os.makedirs(parent_directory)
         print('Logging to {}'.format(parent_directory))
@@ -108,10 +111,10 @@ def execute_training(alg, gpu_card, parent_directory, num_epoch, config, lambda_
     config['alg'] = alg
     config['gpu_card'] = gpu_card
     if alg == 'deepq':
-        config['log_path'] = os.path.join(parent_directory, '{}_{}'.format(alg, str(num_epoch)))
+        config['log_path'] = os.path.join(parent_directory, '_'.join([alg, str(num_epoch)]))
         os.system(dqn_template.format(**config))
     elif alg == 'modified_deepq':
-        config['log_path'] = os.path.join(parent_directory, '{}_{}_{}_{}'.format(alg, lambda_, margin, str(num_epoch)))
+        config['log_path'] = os.path.join(parent_directory, '_'.join([alg, lambda_, margin, str(num_epoch)]))
         config['lambda_'] = lambda_
         config['margin'] = margin
         os.system(modified_dqn_template.format(**config))
