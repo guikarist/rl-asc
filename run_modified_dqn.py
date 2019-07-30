@@ -95,7 +95,8 @@ modified_dqn_template = 'CUDA_VISIBLE_DEVICES={gpu_card} ' \
 parser = ArgumentParser()
 parser.add_argument('--env', type=str, help='The game environment', required=True)
 parser.add_argument('--num_steps', type=float, help='The number of training steps', required=True)
-parser.add_argument('--lambda', dest='lambda_', nargs='+', type=float, help='Hyper-parameter Lambda', required=True)
+parser.add_argument('--lambda', dest='lambda_', metavar='LAMBDA', nargs='+', type=float, help='Hyper-parameter Lambda',
+                    required=True)
 parser.add_argument('--margin', nargs='+', type=float, help='Hyper-parameter Margin', required=True)
 parser.add_argument('--num_epochs', type=int, default=5, help='The number of training epochs')
 parser.add_argument('--print_freq', type=int, default=10, help='The frequency of printing logs')
