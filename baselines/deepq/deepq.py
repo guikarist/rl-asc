@@ -1,5 +1,6 @@
 import os
 import tempfile
+from collections import deque
 
 import tensorflow as tf
 import zipfile
@@ -238,6 +239,7 @@ def learn(env,
     update_target()
 
     episode_rewards = [0.0]
+    episode_scores = deque(maxlen=100)
     saved_mean_reward = None
     obs = env.reset()
     reset = True
@@ -279,13 +281,15 @@ def learn(env,
             action = act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
             env_action = action
             reset = False
-            new_obs, rew, done, _ = env.step(env_action)
+            new_obs, rew, done, info = env.step(env_action)
             # Store transition in the replay buffer.
             replay_buffer.add(obs, action, rew, new_obs, float(done))
             obs = new_obs
 
             episode_rewards[-1] += rew
             if done:
+                if 'episode' in info:
+                    episode_scores.append(info['episode']['r'])
                 obs = env.reset()
                 episode_rewards.append(0.0)
                 reset = True
@@ -308,11 +312,14 @@ def learn(env,
                 update_target()
 
             mean_100ep_reward = round(np.mean(episode_rewards[-101:-1]), 1)
+            if len(episode_scores) != 0:
+                mean_100ep_scores = sum(episode_scores) / len(episode_scores)
             num_episodes = len(episode_rewards)
             if done and print_freq is not None and len(episode_rewards) % print_freq == 0:
                 logger.record_tabular("steps", t)
                 logger.record_tabular("episodes", num_episodes)
                 logger.record_tabular("mean 100 episode reward", mean_100ep_reward)
+                logger.record_tabular("mean 100 episode scores", mean_100ep_scores)
                 logger.record_tabular("% time spent exploring", int(100 * exploration.value(t)))
                 logger.dump_tabular()
 
