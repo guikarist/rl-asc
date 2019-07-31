@@ -91,7 +91,7 @@ modified_dqn_template = 'CUDA_VISIBLE_DEVICES={gpu_card} ' \
                         '--log_path={log_path} ' \
                         '--lambda_={lambda_} ' \
                         '--margin={margin} ' \
-                        '--i={i_before} ' \
+                        '--i_before={i_before} ' \
                         '--dueling=False ' \
                         '--prioritized_replay=False ' \
                         '--print_freq=10 ' \
@@ -103,7 +103,7 @@ parser.add_argument('--num_steps', type=float, help='The number of training step
 parser.add_argument('--lambda', dest='lambda_', metavar='LAMBDA', nargs='+', type=float, help='Hyper-parameter Lambda',
                     required=True)
 parser.add_argument('--margin', nargs='+', type=float, help='Hyper-parameter Margin', required=True)
-parser.add_argument('--i', nargs='+', type=int, help='Hyper-parameter i', required=True)
+parser.add_argument('--i', dest='i_before', nargs='+', type=int, help='Hyper-parameter i', required=True)
 parser.add_argument('--num_epochs', type=int, default=5, help='The number of training epochs')
 parser.add_argument('--print_freq', type=int, default=10, help='The frequency of printing logs')
 parser.add_argument('--only_modified_dqn', action='store_true', help='Whether to run original dqn experiment or not')
