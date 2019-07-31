@@ -34,6 +34,7 @@ def main():
     for i in range(args.num_epochs):
         need_dqn_exp = not args.only_modified_dqn
         num_committed_exps = 0
+        modified_dqn_exps_to_do = modified_dqn_exps.copy()
         while num_committed_exps < num_exps_each_epoch:
             new_available_gpu = GPUtil.getAvailable(
                 order='first', limit=num_exps_each_epoch, maxLoad=initial_max_load, maxMemory=initial_max_memory
@@ -54,8 +55,8 @@ def main():
                 need_dqn_exp = False
                 num_committed_exps += 1
 
-            while len(new_available_gpu) > 0 and len(modified_dqn_exps) > 0:
-                exp = modified_dqn_exps.pop()
+            while len(new_available_gpu) > 0 and len(modified_dqn_exps_to_do) > 0:
+                exp = modified_dqn_exps_to_do.pop()
                 execute_training(
                     'modified_deepq', new_available_gpu.pop(), parent_directory, i, config, exp[0], exp[1]
                 )
@@ -114,7 +115,7 @@ def execute_training(alg, gpu_card, parent_directory, num_epoch, config, lambda_
         config['log_path'] = os.path.join(parent_directory, '_'.join([alg, str(num_epoch)]))
         os.system(dqn_template.format(**config))
     elif alg == 'modified_deepq':
-        config['log_path'] = os.path.join(parent_directory, '_'.join([alg, lambda_, margin, str(num_epoch)]))
+        config['log_path'] = os.path.join(parent_directory, '_'.join([alg, str(lambda_), str(margin), str(num_epoch)]))
         config['lambda_'] = lambda_
         config['margin'] = margin
         os.system(modified_dqn_template.format(**config))
