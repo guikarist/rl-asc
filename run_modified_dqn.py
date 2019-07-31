@@ -11,7 +11,7 @@ def main():
     initial_max_load = 0.5
     initial_max_memory = 0.5
 
-    modified_dqn_exps = [(x, y) for x in args.lambda_ for y in args.margin]
+    modified_dqn_exps = [(x, y, z) for x in args.lambda_ for y in args.margin for z in args.i_before]
     num_exps_each_epoch = len(modified_dqn_exps) if args.only_modified_dqn else len(modified_dqn_exps) + 1
     no_enough_cards = False
     num_launched_epochs = 0
@@ -58,7 +58,7 @@ def main():
             while len(new_available_gpu) > 0 and len(modified_dqn_exps_to_do) > 0:
                 exp = modified_dqn_exps_to_do.pop()
                 execute_training(
-                    'modified_deepq', new_available_gpu.pop(), parent_directory, i, config, exp[0], exp[1]
+                    'modified_deepq', new_available_gpu.pop(), parent_directory, i, config, exp[0], exp[1], exp[2]
                 )
                 num_committed_exps += 1
 
@@ -91,6 +91,7 @@ modified_dqn_template = 'CUDA_VISIBLE_DEVICES={gpu_card} ' \
                         '--log_path={log_path} ' \
                         '--lambda_={lambda_} ' \
                         '--margin={margin} ' \
+                        '--i={i_before} ' \
                         '--dueling=False ' \
                         '--prioritized_replay=False ' \
                         '--print_freq=10 ' \
@@ -102,12 +103,13 @@ parser.add_argument('--num_steps', type=float, help='The number of training step
 parser.add_argument('--lambda', dest='lambda_', metavar='LAMBDA', nargs='+', type=float, help='Hyper-parameter Lambda',
                     required=True)
 parser.add_argument('--margin', nargs='+', type=float, help='Hyper-parameter Margin', required=True)
+parser.add_argument('--i', nargs='+', type=int, help='Hyper-parameter i', required=True)
 parser.add_argument('--num_epochs', type=int, default=5, help='The number of training epochs')
 parser.add_argument('--print_freq', type=int, default=10, help='The frequency of printing logs')
 parser.add_argument('--only_modified_dqn', action='store_true', help='Whether to run original dqn experiment or not')
 
 
-def execute_training(alg, gpu_card, parent_directory, num_epoch, config, lambda_=None, margin=None):
+def execute_training(alg, gpu_card, parent_directory, num_epoch, config, lambda_=None, margin=None, i_before=None):
     config = config.copy()
     config['alg'] = alg
     config['gpu_card'] = gpu_card
@@ -115,9 +117,12 @@ def execute_training(alg, gpu_card, parent_directory, num_epoch, config, lambda_
         config['log_path'] = os.path.join(parent_directory, '_'.join([alg, str(num_epoch)]))
         os.system(dqn_template.format(**config))
     elif alg == 'modified_deepq':
-        config['log_path'] = os.path.join(parent_directory, '_'.join([alg, str(lambda_), str(margin), str(num_epoch)]))
+        config['log_path'] = os.path.join(
+            parent_directory, '_'.join([alg, str(lambda_), str(margin), str(i_before), str(num_epoch)])
+        )
         config['lambda_'] = lambda_
         config['margin'] = margin
+        config['i_before'] = i_before
         os.system(modified_dqn_template.format(**config))
 
 

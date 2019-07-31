@@ -250,16 +250,17 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
 
     with tf.variable_scope(scope, reuse=reuse):
         # set up placeholders
-        obs_tm1_input = make_obs_ph("obs_tm1")
+        obs_tmi_input = make_obs_ph("obs_tmi")
         obs_t_input = make_obs_ph("obs_t")
         act_t_ph = tf.placeholder(tf.int32, [None], name="action")
         rew_t_ph = tf.placeholder(tf.float32, [None], name="reward")
         obs_tp1_input = make_obs_ph("obs_tp1")
         done_mask_ph = tf.placeholder(tf.float32, [None], name="done")
+        has_obs_tmi_mask_ph = tf.placeholder(tf.float32, [None], name="has_obs_tmi")
         importance_weights_ph = tf.placeholder(tf.float32, [None], name="weight")
 
         # f features of the last and next obs.
-        _, f_features_tm1 = q_func(obs_tm1_input.get(), num_actions, scope="q_func", reuse=True)
+        _, f_features_tmi = q_func(obs_tmi_input.get(), num_actions, scope="q_func", reuse=True)
         _, f_features_tp1 = q_func(obs_tp1_input.get(), num_actions, scope="q_func", reuse=True)
 
         # q network evaluation
@@ -292,9 +293,9 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
         errors = U.huber_loss(td_error)
         weighted_error = tf.reduce_mean(importance_weights_ph * errors)
         f_error_1 = tf.reduce_sum(tf.square(f_features_t - f_features_tp1), 1)
-        f_error_2 = tf.reduce_sum(tf.square(f_features_tm1 - f_features_tp1), 1)
+        f_error_2 = tf.reduce_sum(tf.square(f_features_tmi - f_features_tp1), 1)
         representation_loss = tf.reduce_mean(tf.maximum(0., margin + f_error_1 - f_error_2))
-        loss = weighted_error + lambda_ * representation_loss
+        loss = weighted_error + has_obs_tmi_mask_ph * lambda_ * representation_loss
 
         # compute optimization op (potentially with gradient clipping)
         if grad_norm_clipping is not None:
@@ -316,12 +317,13 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
         # Create callable functions
         train = U.function(
             inputs=[
-                obs_tm1_input,
+                obs_tmi_input,
                 obs_t_input,
                 act_t_ph,
                 rew_t_ph,
                 obs_tp1_input,
                 done_mask_ph,
+                has_obs_tmi_mask_ph,
                 importance_weights_ph
             ],
             outputs=[td_error],

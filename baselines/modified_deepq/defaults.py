@@ -10,6 +10,7 @@ def atari():
         target_network_update_freq=1000,
         lambda_=0.1,
         margin=0.1,
+        i_before=1,
         gamma=0.99,
         prioritized_replay=False,
         prioritized_replay_alpha=0.6,
