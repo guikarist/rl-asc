@@ -8,11 +8,18 @@ import os
 
 def main():
     args = parser.parse_args()
+    if not args.only_dqn and (args.lambda_ is None or args.margin is None or args.i_before is None):
+        parser.error('--lambda, --margin and --i are required unless --only_dqn is present.')
+
     initial_max_load = 0.5
     initial_max_memory = 0.5
 
-    modified_dqn_exps = [(x, y, z) for x in args.lambda_ for y in args.margin for z in args.i_before]
-    num_exps_each_epoch = len(modified_dqn_exps) if args.only_modified_dqn else len(modified_dqn_exps) + 1
+    if not args.only_dqn:
+        modified_dqn_exps = [(x, y, z) for x in args.lambda_ for y in args.margin for z in args.i_before]
+        num_exps_each_epoch = len(modified_dqn_exps) if args.only_modified_dqn else len(modified_dqn_exps) + 1
+    else:
+        modified_dqn_exps = None
+        num_exps_each_epoch = 1
     no_enough_cards = False
     num_launched_epochs = 0
 
@@ -33,8 +40,13 @@ def main():
 
     for i in range(args.num_epochs):
         need_dqn_exp = not args.only_modified_dqn
+        need_modified_dqn_exp = not args.only_dqn
+
         num_committed_exps = 0
-        modified_dqn_exps_to_do = modified_dqn_exps.copy()
+        if modified_dqn_exps is not None:
+            modified_dqn_exps_to_do = modified_dqn_exps.copy()
+        else:
+            modified_dqn_exps_to_do = None
         while num_committed_exps < num_exps_each_epoch:
             new_available_gpu = GPUtil.getAvailable(
                 order='first', limit=num_exps_each_epoch, maxLoad=initial_max_load, maxMemory=initial_max_memory
@@ -55,12 +67,13 @@ def main():
                 need_dqn_exp = False
                 num_committed_exps += 1
 
-            while len(new_available_gpu) > 0 and len(modified_dqn_exps_to_do) > 0:
-                exp = modified_dqn_exps_to_do.pop()
-                execute_training(
-                    'modified_deepq', new_available_gpu.pop(), parent_directory, i, config, exp[0], exp[1], exp[2]
-                )
-                num_committed_exps += 1
+            if need_modified_dqn_exp and modified_dqn_exps_to_do is not None:
+                while len(new_available_gpu) > 0 and len(modified_dqn_exps_to_do) > 0:
+                    exp = modified_dqn_exps_to_do.pop()
+                    execute_training(
+                        'modified_deepq', new_available_gpu.pop(), parent_directory, i, config, exp[0], exp[1], exp[2]
+                    )
+                    num_committed_exps += 1
 
         if no_enough_cards:
             break
@@ -102,13 +115,14 @@ modified_dqn_template = 'CUDA_VISIBLE_DEVICES={gpu_card} ' \
 parser = ArgumentParser()
 parser.add_argument('--env', type=str, help='The game environment', required=True)
 parser.add_argument('--num_steps', type=float, help='The number of training steps', required=True)
-parser.add_argument('--lambda', dest='lambda_', metavar='LAMBDA', nargs='+', type=float, help='Hyper-parameter Lambda',
-                    required=True)
-parser.add_argument('--margin', nargs='+', type=float, help='Hyper-parameter Margin', required=True)
-parser.add_argument('--i', dest='i_before', nargs='+', type=int, help='Hyper-parameter i', required=True)
+parser.add_argument('--lambda', dest='lambda_', metavar='LAMBDA', nargs='+', type=float, help='Hyper-parameter Lambda')
+parser.add_argument('--margin', nargs='+', type=float, help='Hyper-parameter Margin')
+parser.add_argument('--i', dest='i_before', nargs='+', type=int, help='Hyper-parameter i')
 parser.add_argument('--num_epochs', type=int, default=5, help='The number of training epochs')
 parser.add_argument('--print_freq', type=int, default=10, help='The frequency of printing logs')
-parser.add_argument('--only_modified_dqn', action='store_true', help='Whether to run original dqn experiment or not')
+gp = parser.add_mutually_exclusive_group()
+gp.add_argument('--only_modified_dqn', action='store_true', help='Whether only to run modified dqn experiment')
+gp.add_argument('--only_dqn', action='store_true', help='Whether only to run original dqn experiment')
 
 
 def execute_training(alg, gpu_card, parent_directory, num_epoch, config, lambda_=None, margin=None, i_before=None):
