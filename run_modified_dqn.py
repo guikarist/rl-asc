@@ -79,6 +79,7 @@ dqn_template = 'CUDA_VISIBLE_DEVICES={gpu_card} ' \
                '--log_path={log_path} ' \
                '--dueling=False ' \
                '--prioritized_replay=False ' \
+               '--double_q=False ' \
                '--print_freq=10 ' \
                '>/dev/null 2>&1 &'
 
@@ -94,6 +95,7 @@ modified_dqn_template = 'CUDA_VISIBLE_DEVICES={gpu_card} ' \
                         '--i_before={i_before} ' \
                         '--dueling=False ' \
                         '--prioritized_replay=False ' \
+                        '--double_q=False ' \
                         '--print_freq=10 ' \
                         '>/dev/null 2>&1 &'
 

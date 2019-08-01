@@ -112,6 +112,7 @@ def learn(env,
           i_before=1,
           gamma=1.0,
           target_network_update_freq=500,
+          double_q=False,
           prioritized_replay=False,
           prioritized_replay_alpha=0.6,
           prioritized_replay_beta0=0.4,
@@ -146,7 +147,8 @@ def learn(env,
         margin=margin,
         gamma=gamma,
         grad_norm_clipping=10,
-        param_noise=param_noise
+        param_noise=param_noise,
+        double_q=double_q
     )
 
     act_params = {
