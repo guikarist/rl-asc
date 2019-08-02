@@ -130,11 +130,11 @@ def execute_training(alg, gpu_card, parent_directory, num_epoch, config, lambda_
     config['alg'] = alg
     config['gpu_card'] = gpu_card
     if alg == 'deepq':
-        config['log_path'] = os.path.join(parent_directory, '_'.join([alg, str(num_epoch)]))
+        config['log_path'] = os.path.join(parent_directory, '_'.join([config['env'], alg, str(num_epoch)]))
         os.system(dqn_template.format(**config))
     elif alg == 'modified_deepq':
         config['log_path'] = os.path.join(
-            parent_directory, '_'.join([alg, str(lambda_), str(margin), str(i_before), str(num_epoch)])
+            parent_directory, '_'.join([config['env'], alg, str(lambda_), str(margin), str(i_before), str(num_epoch)])
         )
         config['lambda_'] = lambda_
         config['margin'] = margin
