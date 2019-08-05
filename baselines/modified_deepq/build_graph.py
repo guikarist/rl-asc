@@ -103,7 +103,7 @@ def build_act(make_obs_ph, q_func, num_actions, scope="deepq", reuse=None):
         def act(ob, stochastic=True, update_eps=-1):
             return _act(ob, stochastic, update_eps)
 
-        return act
+        return act, update_eps_ph
 
 
 def build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope="deepq", reuse=None,
@@ -158,7 +158,7 @@ def build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope="deepq", 
                                                 trainable=False)
 
         # Unmodified Q.
-        q_values, f_features = q_func(observations_ph.get(), num_actions, scope="q_func")
+        q_values, _ = q_func(observations_ph.get(), num_actions, scope="q_func")
 
         # Perturbable Q used for the actual rollout.
         q_values_perturbed = q_func(observations_ph.get(), num_actions, scope="perturbed_q_func")
@@ -235,18 +235,19 @@ def build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope="deepq", 
                 update_eps=-1):
             return _act(ob, stochastic, update_eps, reset, update_param_noise_threshold, update_param_noise_scale)
 
-        return act
+        return act, update_eps_ph
 
 
 def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=None, lambda_=0.1, margin=0.1,
-                gamma=1.0, double_q=True, scope="deepq", reuse=None, param_noise=False, param_noise_filter_func=None):
+                gamma=1.0, double_q=True, scope="deepq", reuse=None, param_noise=False, param_noise_filter_func=None,
+                exploration_final_eps=0.1, modified_part=None):
     if param_noise:
-        act_f = build_act_with_param_noise(
+        act_f, update_eps_ph = build_act_with_param_noise(
             make_obs_ph, q_func, num_actions, scope=scope, reuse=reuse,
             param_noise_filter_func=param_noise_filter_func
         )
     else:
-        act_f = build_act(make_obs_ph, q_func, num_actions, scope=scope, reuse=reuse)
+        act_f, update_eps_ph = build_act(make_obs_ph, q_func, num_actions, scope=scope, reuse=reuse)
 
     with tf.variable_scope(scope, reuse=reuse):
         # set up placeholders
@@ -295,7 +296,24 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
         f_error_1 = tf.reduce_sum(tf.square(f_features_t - f_features_tp1), 1)
         f_error_2 = tf.reduce_sum(tf.square(f_features_tmi - f_features_tp1), 1)
         representation_loss = tf.reduce_mean(tf.maximum(0., margin + f_error_1 - f_error_2))
-        loss = weighted_error + has_obs_tmi_mask_ph * lambda_ * representation_loss
+
+        if modified_part is not None:
+            if modified_part == 'before':
+                loss = tf.cond(
+                    tf.less(update_eps_ph - tf.Variable(exploration_final_eps), tf.Variable(0.0001)),
+                    lambda: weighted_error,
+                    lambda: weighted_error + has_obs_tmi_mask_ph * lambda_ * representation_loss
+                )
+            elif modified_part == 'after':
+                loss = tf.cond(
+                    tf.less(update_eps_ph - tf.Variable(exploration_final_eps), tf.Variable(0.0001)),
+                    lambda: weighted_error + has_obs_tmi_mask_ph * lambda_ * representation_loss,
+                    lambda: weighted_error
+                )
+            else:
+                raise ValueError("Invalid value of 'modified_part'")
+        else:
+            loss = weighted_error + has_obs_tmi_mask_ph * lambda_ * representation_loss
 
         # compute optimization op (potentially with gradient clipping)
         if grad_norm_clipping is not None:
@@ -324,7 +342,8 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
                 obs_tp1_input,
                 done_mask_ph,
                 has_obs_tmi_mask_ph,
-                importance_weights_ph
+                importance_weights_ph,
+                update_eps_ph
             ],
             outputs=[td_error],
             updates=[optimize_expr]

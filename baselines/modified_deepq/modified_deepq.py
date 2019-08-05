@@ -113,6 +113,7 @@ def learn(env,
           gamma=1.0,
           target_network_update_freq=500,
           double_q=False,
+          modified_part=None,
           prioritized_replay=False,
           prioritized_replay_alpha=0.6,
           prioritized_replay_beta0=0.4,
@@ -148,7 +149,9 @@ def learn(env,
         gamma=gamma,
         grad_norm_clipping=10,
         param_noise=param_noise,
-        double_q=double_q
+        double_q=double_q,
+        exploration_final_eps=exploration_final_eps,
+        modified_part=modified_part
     )
 
     act_params = {
@@ -250,7 +253,7 @@ def learn(env,
                         batch_size)
                     weights, batch_idxes = np.ones_like(rewards), None
                 td_errors = train(
-                    obses_tmi, obses_t, actions, rewards, obses_tp1, dones, has_obs_tmis, weights
+                    obses_tmi, obses_t, actions, rewards, obses_tp1, dones, has_obs_tmis, weights, exploration.value(t)
                 )
                 if prioritized_replay:
                     raise NotImplementedError('The prioritized version of modified DQN is not implemented')

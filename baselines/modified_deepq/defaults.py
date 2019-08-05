@@ -17,7 +17,8 @@ def atari():
         checkpoint_freq=10000,
         checkpoint_path=None,
         dueling=False,
-        double_q=False
+        double_q=False,
+        modified_part=None
     )
 
 
