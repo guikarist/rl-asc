@@ -1,5 +1,35 @@
+from baselines.common.models import register
+
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
+
+
+@register("modified_conv_only")
+def modified_conv_only(convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)], **conv_kwargs):
+    def network_fn(X):
+        out = tf.cast(X, tf.float32) / 255.
+        with tf.variable_scope("convnet"):
+            for i, (num_outputs, kernel_size, stride) in enumerate(convs):
+                if i != len(convs) - 1:
+                    out = tf.contrib.layers.convolution2d(out,
+                                                          num_outputs=num_outputs,
+                                                          kernel_size=kernel_size,
+                                                          stride=stride,
+                                                          activation_fn=tf.nn.relu,
+                                                          **conv_kwargs)
+                else:
+                    out = tf.contrib.layers.convolution2d(out,
+                                                          num_outputs=num_outputs,
+                                                          kernel_size=kernel_size,
+                                                          stride=stride,
+                                                          activation_fn=None,
+                                                          **conv_kwargs)
+                    f_features = tf.sigmoid(tf.layers.flatten(out))
+                    out = tf.nn.relu(out)
+
+        return out, f_features
+
+    return network_fn
 
 
 def build_q_func(network, hiddens=[256], dueling=False, layer_norm=False, **network_kwargs):
