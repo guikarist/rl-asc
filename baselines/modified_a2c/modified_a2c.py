@@ -101,11 +101,11 @@ class Model(object):
             if states is not None:
                 td_map[train_model.S] = states
                 td_map[train_model.M] = masks
-            policy_loss, value_loss, policy_entropy, _ = sess.run(
-                [pg_loss, vf_loss, entropy, _train],
+            policy_loss, value_loss, policy_entropy, _representation_loss, _ = sess.run(
+                [pg_loss, vf_loss, entropy, representation_loss, _train],
                 td_map
             )
-            return policy_loss, value_loss, policy_entropy
+            return policy_loss, value_loss, policy_entropy, _representation_loss
 
         self.train = train
         self.train_model = train_model
@@ -178,7 +178,7 @@ def learn(
             right_obs = obses_before.pop()
             has_obs_tmi = True
 
-        policy_loss, value_loss, policy_entropy = model.train(left_obs, right_obs, obs, states, rewards, masks, actions,
+        policy_loss, value_loss, policy_entropy, repr_loss = model.train(left_obs, right_obs, obs, states, rewards, masks, actions,
                                                               values, float(has_obs_tmi))
         if has_obs_tmi:
             obses_before.append(right_obs)
@@ -197,6 +197,7 @@ def learn(
             logger.record_tabular("fps", fps)
             logger.record_tabular("policy_entropy", float(policy_entropy))
             logger.record_tabular("value_loss", float(value_loss))
+            logger.record_tabular("repr_loss", float(repr_loss))
             logger.record_tabular("explained_variance", float(ev))
             logger.record_tabular("eprewmean", safemean([epinfo['r'] for epinfo in epinfobuf]))
             logger.record_tabular("eplenmean", safemean([epinfo['l'] for epinfo in epinfobuf]))

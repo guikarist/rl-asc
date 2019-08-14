@@ -14,7 +14,7 @@ import tensorflow as tf
 class ModifiedPolicyWithValue(object):
     def __init__(self, env, observations, latents, f_features, estimate_q=False, vf_latents=None, sess=None, **tensors):
         self.Xs = observations
-        self.X = observations[1]
+        self.X = observations[2]
         self.f_features = f_features
 
         self.state = tf.constant([])
@@ -23,8 +23,8 @@ class ModifiedPolicyWithValue(object):
 
         vf_latents = vf_latents if vf_latents is not None else latents
 
-        vf_latents = tf.layers.flatten(vf_latents[1])
-        latents = tf.layers.flatten(latents[1])
+        vf_latents = tf.layers.flatten(vf_latents[2])
+        latents = tf.layers.flatten(latents[2])
 
         # Based on the action space, will select what probability distribution type
         self.pdtype = make_pdtype(env.action_space)
@@ -47,7 +47,7 @@ class ModifiedPolicyWithValue(object):
             self.vf = self.vf[:, 0]
 
     def _evaluate(self, variables, observation, **extra_feed):
-        observation = np.array([np.zeros_like(observation), observation, np.zeros_like(observation)])
+        observation = np.array([np.zeros_like(observation), np.zeros_like(observation), observation])
         sess = self.sess
         feed_dict = {self.Xs: adjust_shape(self.Xs, observation)}
         for inpt_name, data in extra_feed.items():
