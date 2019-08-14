@@ -30,7 +30,7 @@ def main():
 
     parent_directory = os.path.join(
         os.getcwd(),
-        '-'.join([args.env, datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')])
+        '-'.join([args.env, 'a2c', datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')])
     )
     if not os.path.exists(parent_directory):
         os.makedirs(parent_directory)
