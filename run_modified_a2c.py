@@ -90,10 +90,7 @@ a2c_template = 'CUDA_VISIBLE_DEVICES={gpu_card} ' \
                '--env={env} ' \
                '--num_timesteps={num_steps} ' \
                '--log_path={log_path} ' \
-               '--dueling=False ' \
-               '--prioritized_replay=False ' \
-               '--double_q=False ' \
-               '--print_freq=10 ' \
+               '--log_interval=10 ' \
                '>/dev/null 2>&1 &'
 
 modified_a2c_template = 'CUDA_VISIBLE_DEVICES={gpu_card} ' \
@@ -106,10 +103,7 @@ modified_a2c_template = 'CUDA_VISIBLE_DEVICES={gpu_card} ' \
                         '--lambda_={lambda_} ' \
                         '--margin={margin} ' \
                         '--i_before={i_before} ' \
-                        '--dueling=False ' \
-                        '--prioritized_replay=False ' \
-                        '--double_q=False ' \
-                        '--print_freq=10 ' \
+                        '--log_interval=10 ' \
                         '>/dev/null 2>&1 &'
 
 parser = ArgumentParser()
