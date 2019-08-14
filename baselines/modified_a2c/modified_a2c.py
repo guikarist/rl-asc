@@ -176,7 +176,6 @@ def learn(
         else:
             left_obs = obses_before.popleft()
             right_obs = obses_before.pop()
-            obses_before.append(obs)
             has_obs_tmi = True
 
         policy_loss, value_loss, policy_entropy = model.train(left_obs, right_obs, obs, states, rewards, masks, actions,
