@@ -1,43 +1,30 @@
 import time
 import functools
 import tensorflow as tf
+import numpy as np
 
 from baselines import logger
 
 from baselines.common import set_global_seeds, explained_variance
 from baselines.common import tf_util
-from baselines.common.policies import build_policy
+from baselines.modified_a2c.policies import build_policy
 
-
-from baselines.a2c.utils import Scheduler, find_trainable_variables
-from baselines.a2c.runner import Runner
+from baselines.modified_a2c.utils import Scheduler, find_trainable_variables
+from baselines.modified_a2c.runner import Runner
 from baselines.ppo2.ppo2 import safemean
 from collections import deque
 
 from tensorflow import losses
 
+
 class Model(object):
-
-    """
-    We use this class to :
-        __init__:
-        - Creates the step_model
-        - Creates the train_model
-
-        train():
-        - Make the training part (feedforward and retropropagation of gradients)
-
-        save/load():
-        - Save load the model
-    """
     def __init__(self, policy, env, nsteps,
-            ent_coef=0.01, vf_coef=0.5, max_grad_norm=0.5, lr=7e-4,
-            alpha=0.99, epsilon=1e-5, total_timesteps=int(80e6), lrschedule='linear'):
+                 ent_coef=0.01, vf_coef=0.5, max_grad_norm=0.5, lr=7e-4,
+                 alpha=0.99, epsilon=1e-5, lambda_=0.1, margin=0.1, total_timesteps=int(80e6), lrschedule='linear'):
 
         sess = tf_util.get_session()
         nenvs = env.num_envs
-        nbatch = nenvs*nsteps
-
+        nbatch = nenvs * nsteps
 
         with tf.variable_scope('a2c_model', reuse=tf.AUTO_REUSE):
             # step_model is used for sampling
@@ -65,7 +52,16 @@ class Model(object):
         # Value loss
         vf_loss = losses.mean_squared_error(tf.squeeze(train_model.vf), R)
 
-        loss = pg_loss - entropy*ent_coef + vf_loss * vf_coef
+        # Representation loss
+        f_features_tmi = train_model.f_features[0]
+        f_features_t = train_model.f_features[1]
+        f_features_tp1 = train_model.f_features[2]
+        f_error_1 = tf.reduce_sum(tf.square(f_features_t - f_features_tp1), 1)
+        f_error_2 = tf.reduce_sum(tf.square(f_features_tmi - f_features_tp1), 1)
+        representation_loss = tf.reduce_mean(tf.maximum(0., margin + f_error_1 - f_error_2))
+        has_obs_tmi_mask_ph = tf.placeholder(tf.float32, None, name="has_obs_tmi")
+
+        loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef + has_obs_tmi_mask_ph * lambda_ * representation_loss
 
         # Update parameters using loss
         # 1. Get the model parameters
@@ -87,14 +83,21 @@ class Model(object):
 
         lr = Scheduler(v=lr, nvalues=total_timesteps, schedule=lrschedule)
 
-        def train(obs, states, rewards, masks, actions, values):
+        def train(obs_tmi, obs, obs_tp1, states, rewards, masks, actions, values, has_obs_tmi):
             # Here we calculate advantage A(s,a) = R + yV(s') - V(s)
             # rewards = R + yV(s')
             advs = rewards - values
             for step in range(len(obs)):
                 cur_lr = lr.value()
 
-            td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr}
+            td_map = {
+                train_model.Xs: [obs_tmi, obs, obs_tp1],
+                A: actions,
+                ADV: advs,
+                R: rewards,
+                LR: cur_lr,
+                has_obs_tmi_mask_ph: has_obs_tmi
+            }
             if states is not None:
                 td_map[train_model.S] = states
                 td_map[train_model.M] = masks
@@ -103,7 +106,6 @@ class Model(object):
                 td_map
             )
             return policy_loss, value_loss, policy_entropy
-
 
         self.train = train
         self.train_model = train_model
@@ -117,72 +119,25 @@ class Model(object):
 
 
 def learn(
-    network,
-    env,
-    seed=None,
-    nsteps=5,
-    total_timesteps=int(80e6),
-    vf_coef=0.5,
-    ent_coef=0.01,
-    max_grad_norm=0.5,
-    lr=7e-4,
-    lrschedule='linear',
-    epsilon=1e-5,
-    alpha=0.99,
-    gamma=0.99,
-    log_interval=100,
-    load_path=None,
-    **network_kwargs):
-
-    '''
-    Main entrypoint for A2C algorithm. Train a policy with given network architecture on a given environment using a2c algorithm.
-
-    Parameters:
-    -----------
-
-    network:            policy network architecture. Either string (mlp, lstm, lnlstm, cnn_lstm, cnn, cnn_small, conv_only - see baselines.common/models.py for full list)
-                        specifying the standard network architecture, or a function that takes tensorflow tensor as input and returns
-                        tuple (output_tensor, extra_feed) where output tensor is the last network layer output, extra_feed is None for feed-forward
-                        neural nets, and extra_feed is a dictionary describing how to feed state into the network for recurrent neural nets.
-                        See baselines.common/policies.py/lstm for more details on using recurrent nets in policies
-
-
-    env:                RL environment. Should implement interface similar to VecEnv (baselines.common/vec_env) or be wrapped with DummyVecEnv (baselines.common/vec_env/dummy_vec_env.py)
-
-
-    seed:               seed to make random number sequence in the alorightm reproducible. By default is None which means seed from system noise generator (not reproducible)
-
-    nsteps:             int, number of steps of the vectorized environment per update (i.e. batch size is nsteps * nenv where
-                        nenv is number of environment copies simulated in parallel)
-
-    total_timesteps:    int, total number of timesteps to train on (default: 80M)
-
-    vf_coef:            float, coefficient in front of value function loss in the total loss function (default: 0.5)
-
-    ent_coef:           float, coeffictiant in front of the policy entropy in the total loss function (default: 0.01)
-
-    max_gradient_norm:  float, gradient is clipped to have global L2 norm no more than this value (default: 0.5)
-
-    lr:                 float, learning rate for RMSProp (current implementation has RMSProp hardcoded in) (default: 7e-4)
-
-    lrschedule:         schedule of learning rate. Can be 'linear', 'constant', or a function [0..1] -> [0..1] that takes fraction of the training progress as input and
-                        returns fraction of the learning rate (specified as lr) as output
-
-    epsilon:            float, RMSProp epsilon (stabilizes square root computation in denominator of RMSProp update) (default: 1e-5)
-
-    alpha:              float, RMSProp decay parameter (default: 0.99)
-
-    gamma:              float, reward discounting parameter (default: 0.99)
-
-    log_interval:       int, specifies how frequently the logs are printed out (default: 100)
-
-    **network_kwargs:   keyword arguments to the policy / network builder. See baselines.common/policies.py/build_policy and arguments to a particular type of network
-                        For instance, 'mlp' network architecture has arguments num_hidden and num_layers.
-
-    '''
-
-
-
+        network,
+        env,
+        seed=None,
+        nsteps=5,
+        total_timesteps=int(80e6),
+        vf_coef=0.5,
+        ent_coef=0.01,
+        max_grad_norm=0.5,
+        lr=7e-4,
+        lrschedule='linear',
+        epsilon=1e-5,
+        alpha=0.99,
+        gamma=0.99,
+        lambda_=0.1,
+        margin=0.1,
+        i_before=1,
+        log_interval=100,
+        load_path=None,
+        **network_kwargs):
     set_global_seeds(seed)
 
     # Get the nb of env
@@ -191,7 +146,8 @@ def learn(
 
     # Instantiate the model object (that creates step_model and train_model)
     model = Model(policy=policy, env=env, nsteps=nsteps, ent_coef=ent_coef, vf_coef=vf_coef,
-        max_grad_norm=max_grad_norm, lr=lr, alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps, lrschedule=lrschedule)
+                  max_grad_norm=max_grad_norm, lr=lr, alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps,
+                  lrschedule=lrschedule, lambda_=lambda_, margin=margin)
     if load_path is not None:
         model.load(load_path)
 
@@ -200,27 +156,45 @@ def learn(
     epinfobuf = deque(maxlen=100)
 
     # Calculate the batch_size
-    nbatch = nenvs*nsteps
+    nbatch = nenvs * nsteps
 
     # Start total timer
     tstart = time.time()
 
-    for update in range(1, total_timesteps//nbatch+1):
+    obses_before: deque[np.ndarray] = deque(maxlen=i_before + 1)
+
+    for update in range(1, total_timesteps // nbatch + 1):
         # Get mini batch of experiences
         obs, states, rewards, masks, actions, values, epinfos = runner.run()
         epinfobuf.extend(epinfos)
 
-        policy_loss, value_loss, policy_entropy = model.train(obs, states, rewards, masks, actions, values)
-        nseconds = time.time()-tstart
+        if len(obses_before) < obses_before.maxlen:
+            obses_before.append(obs)
+            left_obs = np.zeros_like(obs)
+            right_obs = np.zeros_like(obs)
+            has_obs_tmi = False
+        else:
+            left_obs = obses_before.popleft()
+            right_obs = obses_before.pop()
+            obses_before.append(obs)
+            has_obs_tmi = True
+
+        policy_loss, value_loss, policy_entropy = model.train(left_obs, right_obs, obs, states, rewards, masks, actions,
+                                                              values, float(has_obs_tmi))
+        if has_obs_tmi:
+            obses_before.append(right_obs)
+            obses_before.append(obs)
+
+        nseconds = time.time() - tstart
 
         # Calculate the fps (frame per second)
-        fps = int((update*nbatch)/nseconds)
+        fps = int((update * nbatch) / nseconds)
         if update % log_interval == 0 or update == 1:
             # Calculates if value function is a good predicator of the returns (ev > 1)
             # or if it's just worse than predicting nothing (ev =< 0)
             ev = explained_variance(values, rewards)
             logger.record_tabular("nupdates", update)
-            logger.record_tabular("total_timesteps", update*nbatch)
+            logger.record_tabular("total_timesteps", update * nbatch)
             logger.record_tabular("fps", fps)
             logger.record_tabular("policy_entropy", float(policy_entropy))
             logger.record_tabular("value_loss", float(value_loss))
@@ -229,4 +203,3 @@ def learn(
             logger.record_tabular("eplenmean", safemean([epinfo['l'] for epinfo in epinfobuf]))
             logger.dump_tabular()
     return model
-
