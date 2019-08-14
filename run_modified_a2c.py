@@ -26,7 +26,6 @@ def main():
     config = {
         'env': args.env,
         'num_steps': args.num_steps,
-        'modified_part': args.modified_part
     }
 
     parent_directory = os.path.join(
