@@ -9,7 +9,8 @@ def mujoco():
         ent_coef=0.0,
         lr=lambda f: 3e-4 * f,
         cliprange=0.2,
-        value_network='copy'
+        value_network='copy',
+        network='modified_cnn'
     )
 
 
@@ -20,6 +21,7 @@ def atari():
         ent_coef=.01,
         lr=lambda f: f * 2.5e-4,
         cliprange=0.1,
+        network='modified_cnn'
     )
 
 

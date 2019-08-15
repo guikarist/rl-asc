@@ -27,7 +27,8 @@ class Model(object):
     """
 
     def __init__(self, *, policy, ob_space, ac_space, nbatch_act, nbatch_train,
-                 nsteps, ent_coef, vf_coef, max_grad_norm, mpi_rank_weight=1, comm=None, microbatch_size=None):
+                 nsteps, ent_coef, vf_coef, max_grad_norm, lambda_, margin, mpi_rank_weight=1, comm=None,
+                 microbatch_size=None):
         self.sess = sess = get_session()
 
         if MPI is not None and comm is None:
@@ -89,8 +90,17 @@ class Model(object):
         approxkl = .5 * tf.reduce_mean(tf.square(neglogpac - OLDNEGLOGPAC))
         clipfrac = tf.reduce_mean(tf.to_float(tf.greater(tf.abs(ratio - 1.0), CLIPRANGE)))
 
+        # Representation loss
+        f_features_tmi = train_model.f_features[0]
+        f_features_t = train_model.f_features[1]
+        f_features_tp1 = train_model.f_features[2]
+        f_error_1 = tf.reduce_sum(tf.square(f_features_t - f_features_tp1), 1)
+        f_error_2 = tf.reduce_sum(tf.square(f_features_tmi - f_features_tp1), 1)
+        representation_loss = tf.reduce_mean(tf.maximum(0., margin + f_error_1 - f_error_2))
+        self.has_obs_tmi_mask_ph = tf.placeholder(tf.float32, shape=None, name="has_obs_tmi")
+
         # Total loss
-        loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef
+        loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef + self.has_obs_tmi_mask_ph * lambda_ * representation_loss
 
         # UPDATE THE PARAMETERS USING LOSS
         # 1. Get the model parameters
@@ -114,8 +124,8 @@ class Model(object):
         self.grads = grads
         self.var = var
         self._train_op = self.trainer.apply_gradients(grads_and_var)
-        self.loss_names = ['policy_loss', 'value_loss', 'policy_entropy', 'approxkl', 'clipfrac']
-        self.stats_list = [pg_loss, vf_loss, entropy, approxkl, clipfrac]
+        self.loss_names = ['policy_loss', 'value_loss', 'repr_loss', 'policy_entropy', 'approxkl', 'clipfrac']
+        self.stats_list = [pg_loss, vf_loss, representation_loss, entropy, approxkl, clipfrac]
 
         self.train_model = train_model
         self.act_model = act_model
@@ -131,7 +141,8 @@ class Model(object):
         if MPI is not None:
             sync_from_root(sess, global_variables, comm=comm)  # pylint: disable=E1101
 
-    def train(self, lr, cliprange, obs, returns, masks, actions, values, neglogpacs, states=None):
+    def train(self, lr, cliprange, obs_tmi, obs, obs_tp1, returns, masks, actions, values, neglogpacs, has_obs_tmi,
+              states=None):
         # Here we calculate advantage A(s,a) = R + yV(s') - V(s)
         # Returns = R + yV(s')
         advs = returns - values
@@ -140,14 +151,15 @@ class Model(object):
         advs = (advs - advs.mean()) / (advs.std() + 1e-8)
 
         td_map = {
-            self.train_model.X: obs,
+            self.train_model.Xs: [obs_tmi, obs, obs_tp1],
             self.A: actions,
             self.ADV: advs,
             self.R: returns,
             self.LR: lr,
             self.CLIPRANGE: cliprange,
             self.OLDNEGLOGPAC: neglogpacs,
-            self.OLDVPRED: values
+            self.OLDVPRED: values,
+            self.has_obs_tmi_mask_ph: has_obs_tmi
         }
         if states is not None:
             td_map[self.train_model.S] = states

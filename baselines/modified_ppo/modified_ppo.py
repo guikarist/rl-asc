@@ -5,7 +5,7 @@ import os.path as osp
 from baselines import logger
 from collections import deque
 from baselines.common import explained_variance, set_global_seeds
-from baselines.common.policies import build_policy
+from baselines.modified_a2c.policies import build_policy
 
 try:
     from mpi4py import MPI
@@ -25,7 +25,7 @@ def learn(*, network, env, total_timesteps, eval_env=None, seed=None, nsteps=204
           vf_coef=0.5, max_grad_norm=0.5, gamma=0.99, lam=0.95,
           log_interval=10, nminibatches=4, noptepochs=4, cliprange=0.2,
           save_interval=0, load_path=None, model_fn=None, update_fn=None, init_fn=None, mpi_rank_weight=1, comm=None,
-          **network_kwargs):
+          lambda_=0.1, margin=0.1, i_before=1, **network_kwargs):
     '''
     Learn policy using PPO algorithm (https://arxiv.org/abs/1707.06347)
 
@@ -113,8 +113,8 @@ def learn(*, network, env, total_timesteps, eval_env=None, seed=None, nsteps=204
         model_fn = Model
 
     model = model_fn(policy=policy, ob_space=ob_space, ac_space=ac_space, nbatch_act=nenvs, nbatch_train=nbatch_train,
-                     nsteps=nsteps, ent_coef=ent_coef, vf_coef=vf_coef,
-                     max_grad_norm=max_grad_norm, comm=comm, mpi_rank_weight=mpi_rank_weight)
+                     nsteps=nsteps, ent_coef=ent_coef, vf_coef=vf_coef, max_grad_norm=max_grad_norm, comm=comm,
+                     lambda_=lambda_, margin=margin, mpi_rank_weight=mpi_rank_weight)
 
     if load_path is not None:
         model.load(load_path)
@@ -132,6 +132,8 @@ def learn(*, network, env, total_timesteps, eval_env=None, seed=None, nsteps=204
 
     # Start total timer
     tfirststart = time.perf_counter()
+
+    obses_before: deque[np.ndarray] = deque(maxlen=i_before + 1)
 
     nupdates = total_timesteps // nbatch
     for update in range(1, nupdates + 1):
@@ -157,6 +159,16 @@ def learn(*, network, env, total_timesteps, eval_env=None, seed=None, nsteps=204
         if eval_env is not None:
             eval_epinfobuf.extend(eval_epinfos)
 
+        if len(obses_before) < obses_before.maxlen:
+            obses_before.append(obs)
+            left_obs = np.zeros_like(obs)
+            right_obs = np.zeros_like(obs)
+            has_obs_tmi = float(False)
+        else:
+            left_obs = obses_before.popleft()
+            right_obs = obses_before.pop()
+            has_obs_tmi = float(True)
+
         # Here what we're going to do is for each minibatch calculate the loss and append it.
         mblossvals = []
         if states is None:  # nonrecurrent version
@@ -170,8 +182,9 @@ def learn(*, network, env, total_timesteps, eval_env=None, seed=None, nsteps=204
                 for start in range(0, nbatch, nbatch_train):
                     end = start + nbatch_train
                     mbinds = inds[start:end]
-                    slices = (arr[mbinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
-                    mblossvals.append(model.train(lrnow, cliprangenow, *slices))
+                    slices = (arr[mbinds] for arr in
+                              (left_obs, right_obs, obs, returns, masks, actions, values, neglogpacs))
+                    mblossvals.append(model.train(lrnow, cliprangenow, *slices, has_obs_tmi))
         else:  # recurrent version
             assert nenvs % nminibatches == 0
             envsperbatch = nenvs // nminibatches
@@ -183,9 +196,14 @@ def learn(*, network, env, total_timesteps, eval_env=None, seed=None, nsteps=204
                     end = start + envsperbatch
                     mbenvinds = envinds[start:end]
                     mbflatinds = flatinds[mbenvinds].ravel()
-                    slices = (arr[mbflatinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
+                    slices = (arr[mbflatinds] for arr in
+                              (left_obs, right_obs, obs, returns, masks, actions, values, neglogpacs))
                     mbstates = states[mbenvinds]
-                    mblossvals.append(model.train(lrnow, cliprangenow, *slices, mbstates))
+                    mblossvals.append(model.train(lrnow, cliprangenow, *slices, has_obs_tmi, mbstates))
+
+        if has_obs_tmi:
+            obses_before.append(right_obs)
+            obses_before.append(obs)
 
         # Feedforward --> get losses --> update
         lossvals = np.mean(mblossvals, axis=0)
