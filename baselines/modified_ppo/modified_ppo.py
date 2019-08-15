@@ -25,7 +25,7 @@ def learn(*, network, env, total_timesteps, eval_env=None, seed=None, nsteps=204
           vf_coef=0.5, max_grad_norm=0.5, gamma=0.99, lam=0.95,
           log_interval=10, nminibatches=4, noptepochs=4, cliprange=0.2,
           save_interval=0, load_path=None, model_fn=None, update_fn=None, init_fn=None, mpi_rank_weight=1, comm=None,
-          lambda_=0.1, margin=0.1, i_before=1, **network_kwargs):
+          lambda_=0.1, margin=0.3, i_before=1, **network_kwargs):
     '''
     Learn policy using PPO algorithm (https://arxiv.org/abs/1707.06347)
 
