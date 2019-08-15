@@ -9,6 +9,7 @@ from baselines.modified_ppo.modified_ppo import learn
 
 from baselines.modified_ppo.microbatched_model import MicrobatchedModel
 
+
 def test_microbatches():
     def env_fn():
         env = gym.make('CartPole-v0')
@@ -30,6 +31,7 @@ def test_microbatches():
 
     for v in vars_ref:
         np.testing.assert_allclose(vars_ref[v], vars_test[v], atol=3e-3)
+
 
 if __name__ == '__main__':
     test_microbatches()
