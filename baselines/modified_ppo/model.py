@@ -31,7 +31,7 @@ class Model(object):
         if MPI is not None and comm is None:
             comm = MPI.COMM_WORLD
 
-        with tf.variable_scope('ppo2_model', reuse=tf.AUTO_REUSE):
+        with tf.variable_scope('modified_ppo_model', reuse=tf.AUTO_REUSE):
             # CREATE OUR TWO MODELS
             # act_model that is used for sampling
             act_model = policy(nbatch_act, 1, sess)
@@ -92,7 +92,7 @@ class Model(object):
 
         # UPDATE THE PARAMETERS USING LOSS
         # 1. Get the model parameters
-        params = tf.trainable_variables('ppo2_model')
+        params = tf.trainable_variables('modified_ppo_model')
         # 2. Build our trainer
         if comm is not None and comm.Get_size() > 1:
             self.trainer = MpiAdamOptimizer(comm, learning_rate=LR, mpi_rank_weight=mpi_rank_weight, epsilon=1e-5)
