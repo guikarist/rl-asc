@@ -125,7 +125,8 @@ def execute_training(alg, gpu_card, parent_directory, num_epoch, config, lambda_
     config['alg'] = alg
     config['gpu_card'] = gpu_card
     if alg == 'ppo':
-        config['log_path'] = os.path.join(parent_directory, '_'.join([config['env'], 'ppo2', str(num_epoch)]))
+        config['log_path'] = os.path.join(parent_directory, '_'.join([config['env'], 'ppo', str(num_epoch)]))
+        config['alg'] = 'ppo2'
         os.system(ppo_template.format(**config))
     elif alg == 'modified_ppo':
         config['log_path'] = os.path.join(
