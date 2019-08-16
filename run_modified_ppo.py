@@ -113,7 +113,6 @@ parser.add_argument('--lambda', dest='lambda_', metavar='LAMBDA', nargs='+', typ
 parser.add_argument('--margin', nargs='+', type=float, help='Hyper-parameter Margin')
 parser.add_argument('--i', dest='i_before', nargs='+', type=int, help='Hyper-parameter i')
 parser.add_argument('--num_epochs', type=int, default=5, help='The number of training epochs')
-parser.add_argument('--print_freq', type=int, default=10, help='The frequency of printing logs')
 gp = parser.add_mutually_exclusive_group()
 gp.add_argument('--only_modified_ppo', action='store_true', help='Whether only to run modified ppo experiment')
 gp.add_argument('--only_ppo', action='store_true', help='Whether only to run original ppo experiment')
