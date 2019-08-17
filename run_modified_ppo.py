@@ -2,6 +2,7 @@ from argparse import ArgumentParser
 
 import GPUtil
 import datetime
+import time
 import sys
 import os
 
@@ -120,6 +121,7 @@ gp.add_argument('--only_ppo', action='store_true', help='Whether only to run ori
 
 def execute_training(alg, gpu_card, parent_directory, num_epoch, config, lambda_=None, margin=None,
                      i_before=None):
+    time.sleep(5)
     config = config.copy()
     config['alg'] = alg
     config['gpu_card'] = gpu_card
