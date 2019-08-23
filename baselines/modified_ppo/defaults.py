@@ -9,8 +9,8 @@ def mujoco():
         ent_coef=0.0,
         lr=lambda f: 3e-4 * f,
         cliprange=0.2,
-        value_network='copy',
-        network='modified_cnn'
+        value_network='shared',
+        network='modified_mlp'
     )
 
 
