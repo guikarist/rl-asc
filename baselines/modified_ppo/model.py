@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 import functools
 
 from baselines.common.tf_util import get_session, save_variables, load_variables
@@ -97,10 +98,12 @@ class Model(object):
         f_error_1 = tf.reduce_sum(tf.square(f_features_t - f_features_tp1), 1)
         f_error_2 = tf.reduce_sum(tf.square(f_features_tmi - f_features_tp1), 1)
         representation_loss = tf.reduce_mean(tf.maximum(0., margin + f_error_1 - f_error_2))
-        self.has_obs_tmi_mask_ph = tf.placeholder(tf.float32, shape=None, name="has_obs_tmi")
+        self.has_triplet_mask_ph = tf.placeholder(tf.float32, shape=[None], name="has_triplet")
 
         # Total loss
-        loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef + self.has_obs_tmi_mask_ph * lambda_ * representation_loss
+        loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef \
+               + tf.reshape(self.has_triplet_mask_ph, np.asarray((-1, *[1] * (len(representation_loss.shape) - 1)))) \
+               * lambda_ * representation_loss
 
         # UPDATE THE PARAMETERS USING LOSS
         # 1. Get the model parameters
@@ -141,7 +144,7 @@ class Model(object):
         if MPI is not None:
             sync_from_root(sess, global_variables, comm=comm)  # pylint: disable=E1101
 
-    def train(self, lr, cliprange, obs_tmi, obs, obs_tp1, returns, masks, actions, values, neglogpacs, has_obs_tmi,
+    def train(self, lr, cliprange, obs_tmi, obs, obs_tp1, returns, masks, actions, values, neglogpacs, has_triplet,
               states=None):
         # Here we calculate advantage A(s,a) = R + yV(s') - V(s)
         # Returns = R + yV(s')
@@ -159,7 +162,7 @@ class Model(object):
             self.CLIPRANGE: cliprange,
             self.OLDNEGLOGPAC: neglogpacs,
             self.OLDVPRED: values,
-            self.has_obs_tmi_mask_ph: has_obs_tmi
+            self.has_triplet_mask_ph: has_triplet
         }
         if states is not None:
             td_map[self.train_model.S] = states

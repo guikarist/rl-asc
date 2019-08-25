@@ -159,15 +159,25 @@ def learn(*, network, env, total_timesteps, eval_env=None, seed=None, nsteps=204
         if eval_env is not None:
             eval_epinfobuf.extend(eval_epinfos)
 
-        if len(obses_before) < obses_before.maxlen:
-            obses_before.append(obs)
-            left_obs = np.zeros_like(obs)
-            right_obs = np.zeros_like(obs)
-            has_obs_tmi = float(False)
-        else:
-            left_obs = obses_before.popleft()
-            right_obs = obses_before.pop()
-            has_obs_tmi = float(True)
+        left_obs = []
+        has_left_obs = []
+        for start in range(0, nbatch, nsteps):
+            result, has_obs = shift(obs[start: start + nsteps], i_before, fill_value=np.zeros_like(obs[0]))
+            left_obs.append(result)
+            has_left_obs.append(has_obs)
+        left_obs = np.vstack(left_obs)
+        has_left_obs = np.hstack(has_left_obs)
+
+        right_obs = []
+        has_right_obs = []
+        for start in range(0, nbatch, nsteps):
+            result, has_obs = shift(obs[start: start + nsteps], -1, fill_value=np.zeros_like(obs[0]))
+            right_obs.append(result)
+            has_right_obs.append(has_obs)
+        right_obs = np.vstack(right_obs)
+        has_right_obs = np.hstack(has_right_obs)
+
+        has_triplet = np.logical_and(has_left_obs, has_right_obs).astype(float)
 
         # Here what we're going to do is for each minibatch calculate the loss and append it.
         mblossvals = []
@@ -183,8 +193,8 @@ def learn(*, network, env, total_timesteps, eval_env=None, seed=None, nsteps=204
                     end = start + nbatch_train
                     mbinds = inds[start:end]
                     slices = (arr[mbinds] for arr in
-                              (left_obs, right_obs, obs, returns, masks, actions, values, neglogpacs))
-                    mblossvals.append(model.train(lrnow, cliprangenow, *slices, has_obs_tmi))
+                              (left_obs, obs, right_obs, returns, masks, actions, values, neglogpacs, has_triplet))
+                    mblossvals.append(model.train(lrnow, cliprangenow, *slices))
         else:  # recurrent version
             assert nenvs % nminibatches == 0
             envsperbatch = nenvs // nminibatches
@@ -197,13 +207,10 @@ def learn(*, network, env, total_timesteps, eval_env=None, seed=None, nsteps=204
                     mbenvinds = envinds[start:end]
                     mbflatinds = flatinds[mbenvinds].ravel()
                     slices = (arr[mbflatinds] for arr in
-                              (left_obs, right_obs, obs, returns, masks, actions, values, neglogpacs))
+                              (left_obs, obs, right_obs, returns, masks, actions, values, neglogpacs, has_triplet))
                     mbstates = states[mbenvinds]
-                    mblossvals.append(model.train(lrnow, cliprangenow, *slices, has_obs_tmi, mbstates))
+                    mblossvals.append(model.train(lrnow, cliprangenow, *slices, mbstates))
 
-        if has_obs_tmi:
-            obses_before.append(right_obs)
-            obses_before.append(obs)
 
         # Feedforward --> get losses --> update
         lossvals = np.mean(mblossvals, axis=0)
@@ -247,3 +254,24 @@ def learn(*, network, env, total_timesteps, eval_env=None, seed=None, nsteps=204
 # Avoid division error when calculate the mean (in our case if epinfo is empty returns np.nan, not return an error)
 def safemean(xs):
     return np.nan if len(xs) == 0 else np.mean(xs)
+
+
+def shift(arr, num, fill_value):
+    """
+    The shift function is copied from https://stackoverflow.com/a/42642326
+    """
+    result = np.empty_like(arr)
+    has_obs = np.ones(shape=arr.shape[0], dtype=np.float)
+    if num > 0:
+        result[:num] = fill_value
+        has_obs[:num] = float(False)
+
+        result[num:] = arr[:-num]
+    elif num < 0:
+        result[num:] = fill_value
+        has_obs[num:] = float(False)
+
+        result[:num] = arr[-num:]
+    else:
+        result[:] = arr
+    return result, has_obs
