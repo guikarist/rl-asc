@@ -211,7 +211,6 @@ def learn(*, network, env, total_timesteps, eval_env=None, seed=None, nsteps=204
                     mbstates = states[mbenvinds]
                     mblossvals.append(model.train(lrnow, cliprangenow, *slices, mbstates))
 
-
         # Feedforward --> get losses --> update
         lossvals = np.mean(mblossvals, axis=0)
         # End timer

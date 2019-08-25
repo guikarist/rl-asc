@@ -97,13 +97,12 @@ class Model(object):
         f_features_tp1 = train_model.f_features[2]
         f_error_1 = tf.reduce_sum(tf.square(f_features_t - f_features_tp1), 1)
         f_error_2 = tf.reduce_sum(tf.square(f_features_tmi - f_features_tp1), 1)
-        representation_loss = tf.reduce_mean(tf.maximum(0., margin + f_error_1 - f_error_2))
+
         self.has_triplet_mask_ph = tf.placeholder(tf.float32, shape=[None], name="has_triplet")
+        representation_loss = tf.reduce_mean(self.has_triplet_mask_ph * tf.maximum(0., margin + f_error_1 - f_error_2))
 
         # Total loss
-        loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef \
-               + tf.reshape(self.has_triplet_mask_ph, np.asarray((-1, *[1] * (len(representation_loss.shape) - 1)))) \
-               * lambda_ * representation_loss
+        loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef + lambda_ * representation_loss
 
         # UPDATE THE PARAMETERS USING LOSS
         # 1. Get the model parameters

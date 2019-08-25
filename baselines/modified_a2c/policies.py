@@ -47,7 +47,7 @@ class ModifiedPolicyWithValue(object):
             self.vf = self.vf[:, 0]
 
     def _evaluate(self, variables, observation, **extra_feed):
-        observation = np.array([np.zeros_like(observation), np.zeros_like(observation), observation])
+        observation = np.array([np.zeros_like(observation), observation, np.zeros_like(observation)])
         sess = self.sess
         feed_dict = {self.Xs: adjust_shape(self.Xs, observation)}
         for inpt_name, data in extra_feed.items():
@@ -96,7 +96,6 @@ def build_policy(env, policy_network='', value_network=None, normalize_observati
         encoded_x = encode_observation(ob_space, encoded_x)
 
         with tf.variable_scope('pi', reuse=tf.AUTO_REUSE):
-            # policy_latent, f_feature = policy_network(encoded_x)
             policy_latents, f_features = policy_network(encoded_x)
 
         _v_net = value_network
