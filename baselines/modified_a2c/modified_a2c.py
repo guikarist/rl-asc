@@ -58,10 +58,11 @@ class Model(object):
         f_features_tp1 = train_model.f_features[2]
         f_error_1 = tf.reduce_sum(tf.square(f_features_t - f_features_tp1), 1)
         f_error_2 = tf.reduce_sum(tf.square(f_features_tmi - f_features_tp1), 1)
-        representation_loss = tf.reduce_mean(tf.maximum(0., margin + f_error_1 - f_error_2))
-        has_obs_tmi_mask_ph = tf.placeholder(tf.float32, None, name="has_obs_tmi")
 
-        loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef + has_obs_tmi_mask_ph * lambda_ * representation_loss
+        has_triplet_mask_ph = tf.placeholder(tf.float32, [None], name="has_triplet")
+        representation_loss = tf.reduce_mean(has_triplet_mask_ph * tf.maximum(0., margin + f_error_1 - f_error_2))
+
+        loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef + lambda_ * representation_loss
 
         # Update parameters using loss
         # 1. Get the model parameters
@@ -96,7 +97,7 @@ class Model(object):
                 ADV: advs,
                 R: rewards,
                 LR: cur_lr,
-                has_obs_tmi_mask_ph: has_obs_tmi
+                has_triplet_mask_ph: has_obs_tmi
             }
             if states is not None:
                 td_map[train_model.S] = states
@@ -168,21 +169,29 @@ def learn(
         obs, states, rewards, masks, actions, values, epinfos = runner.run()
         epinfobuf.extend(epinfos)
 
-        if len(obses_before) < obses_before.maxlen:
-            obses_before.append(obs)
-            left_obs = np.zeros_like(obs)
-            right_obs = np.zeros_like(obs)
-            has_obs_tmi = False
-        else:
-            left_obs = obses_before.popleft()
-            right_obs = obses_before.pop()
-            has_obs_tmi = True
+        left_obs = []
+        has_left_obs = []
+        for start in range(0, nbatch, nsteps):
+            result, has_obs = shift(obs[start: start + nsteps], i_before, fill_value=np.zeros_like(obs[0]))
+            left_obs.append(result)
+            has_left_obs.append(has_obs)
+        left_obs = np.vstack(left_obs)
+        has_left_obs = np.hstack(has_left_obs)
 
-        policy_loss, value_loss, policy_entropy, repr_loss = model.train(left_obs, right_obs, obs, states, rewards, masks, actions,
-                                                              values, float(has_obs_tmi))
-        if has_obs_tmi:
-            obses_before.append(right_obs)
-            obses_before.append(obs)
+        right_obs = []
+        has_right_obs = []
+        for start in range(0, nbatch, nsteps):
+            result, has_obs = shift(obs[start: start + nsteps], -1, fill_value=np.zeros_like(obs[0]))
+            right_obs.append(result)
+            has_right_obs.append(has_obs)
+        right_obs = np.vstack(right_obs)
+        has_right_obs = np.hstack(has_right_obs)
+
+        has_triplet = np.logical_and(has_left_obs, has_right_obs).astype(float)
+
+        policy_loss, value_loss, policy_entropy, repr_loss = model.train(left_obs, obs, right_obs, states, rewards,
+                                                                         masks, actions,
+                                                                         values, has_triplet)
 
         nseconds = time.time() - tstart
 
@@ -203,3 +212,24 @@ def learn(
             logger.record_tabular("eplenmean", safemean([epinfo['l'] for epinfo in epinfobuf]))
             logger.dump_tabular()
     return model
+
+
+def shift(arr, num, fill_value):
+    """
+    The shift function is copied from https://stackoverflow.com/a/42642326
+    """
+    result = np.empty_like(arr)
+    has_obs = np.ones(shape=arr.shape[0], dtype=np.float)
+    if num > 0:
+        result[:num] = fill_value
+        has_obs[:num] = float(False)
+
+        result[num:] = arr[:-num]
+    elif num < 0:
+        result[num:] = fill_value
+        has_obs[num:] = float(False)
+
+        result[:num] = arr[-num:]
+    else:
+        result[:] = arr
+    return result, has_obs

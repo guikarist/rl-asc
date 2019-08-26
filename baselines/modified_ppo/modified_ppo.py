@@ -5,6 +5,7 @@ import os.path as osp
 from baselines import logger
 from collections import deque
 from baselines.common import explained_variance, set_global_seeds
+from baselines.modified_a2c.modified_a2c import shift
 from baselines.modified_a2c.policies import build_policy
 
 try:
@@ -253,24 +254,3 @@ def learn(*, network, env, total_timesteps, eval_env=None, seed=None, nsteps=204
 # Avoid division error when calculate the mean (in our case if epinfo is empty returns np.nan, not return an error)
 def safemean(xs):
     return np.nan if len(xs) == 0 else np.mean(xs)
-
-
-def shift(arr, num, fill_value):
-    """
-    The shift function is copied from https://stackoverflow.com/a/42642326
-    """
-    result = np.empty_like(arr)
-    has_obs = np.ones(shape=arr.shape[0], dtype=np.float)
-    if num > 0:
-        result[:num] = fill_value
-        has_obs[:num] = float(False)
-
-        result[num:] = arr[:-num]
-    elif num < 0:
-        result[num:] = fill_value
-        has_obs[num:] = float(False)
-
-        result[:num] = arr[-num:]
-    else:
-        result[:] = arr
-    return result, has_obs
