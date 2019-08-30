@@ -42,6 +42,31 @@ def mlp(num_layers=2, num_hidden=64, activation=tf.tanh, layer_norm=False):
     return network_fn
 
 
+@register("modified_mlp_v2")
+def mlp(num_layers=2, num_hidden=64, activation=tf.tanh, layer_norm=False):
+    def network_fn(X):
+        h = tf.map_fn(tf.layers.flatten, X)
+
+        def fc_func(x):
+            return fc(x, 'mlp_fc{}'.format(i), nh=num_hidden, init_scale=np.sqrt(2))
+
+        def norm_func(x):
+            return tf.contrib.layers.layer_norm(x, center=True, scale=True)
+
+        for i in range(num_layers):
+            h = tf.map_fn(fc_func, h)
+            if layer_norm:
+                h = tf.map_fn(norm_func, h)
+
+            h = tf.map_fn(activation, h)
+
+        f_features = tf.map_fn(tf.layers.flatten, h)
+
+        return h, f_features
+
+    return network_fn
+
+
 def nature_cnn(unscaled_images, **conv_kwargs):
     """
     CNN from Nature paper.

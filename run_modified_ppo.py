@@ -26,6 +26,7 @@ def main():
     config = {
         'env': args.env,
         'num_steps': args.num_steps,
+        'network': 'modified_mlp_v2' if args.mujoco and args.network == parser.get_default('network') else args.network
     }
 
     parent_directory = os.path.join(
@@ -103,16 +104,19 @@ modified_ppo_template = 'CUDA_VISIBLE_DEVICES={gpu_card} ' \
                         '--lambda_={lambda_} ' \
                         '--margin={margin} ' \
                         '--i_before={i_before} ' \
+                        '--network={network} ' \
                         '--log_interval=10 ' \
                         '>/dev/null 2>&1 &'
 
 parser = ArgumentParser()
 parser.add_argument('--env', type=str, help='The game environment', required=True)
 parser.add_argument('--num_steps', type=float, help='The number of training steps', required=True)
+parser.add_argument('--network', type=str, help='The network used in modified_ppo', default='modified_cnn')
 parser.add_argument('--lambda', dest='lambda_', metavar='LAMBDA', nargs='+', type=float, help='Hyper-parameter Lambda')
 parser.add_argument('--margin', nargs='+', type=float, help='Hyper-parameter Margin')
 parser.add_argument('--i', dest='i_before', nargs='+', type=int, help='Hyper-parameter i')
 parser.add_argument('--num_epochs', type=int, default=5, help='The number of training epochs')
+parser.add_argument('--mujoco', action='store_true', help='Whether to run mujoco experiments')
 gp = parser.add_mutually_exclusive_group()
 gp.add_argument('--only_modified_ppo', action='store_true', help='Whether only to run modified ppo experiment')
 gp.add_argument('--only_ppo', action='store_true', help='Whether only to run original ppo experiment')
@@ -132,7 +136,7 @@ def execute_training(alg, gpu_card, parent_directory, num_epoch, config, lambda_
             parent_directory,
             '_'.join([
                 config['env'], alg, str(lambda_), str(margin), str(i_before),
-                str(num_epoch)
+                str(config['network']), str(num_epoch)
             ])
         )
         config['lambda_'] = lambda_
