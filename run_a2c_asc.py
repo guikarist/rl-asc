@@ -9,19 +9,19 @@ import os
 def main():
     args = parser.parse_args()
     if not args.only_a2c and (args.lambda_ is None or args.margin is None or args.i_before is None):
-        parser.error('--lambda, --margin and --i are required unless --only_a2c is present.')
+        parser.error('--lambda, --margin and --alpha are required unless --only_a2c is present.')
 
     initial_max_load = 0.5
     initial_max_memory = 0.5
 
     if not args.only_a2c:
         modified_a2c_exps = [(x, y, z) for x in args.lambda_ for y in args.margin for z in args.i_before]
-        num_exps_each_epoch = len(modified_a2c_exps) if args.only_modified_a2c else len(modified_a2c_exps) + 1
+        num_exps_each_rep = len(modified_a2c_exps) if args.only_modified_a2c else len(modified_a2c_exps) + 1
     else:
         modified_a2c_exps = None
-        num_exps_each_epoch = 1
+        num_exps_each_rep = 1
     no_enough_cards = False
-    num_launched_epochs = 0
+    num_launched_reps = 0
 
     config = {
         'env': args.env,
@@ -38,7 +38,7 @@ def main():
     else:
         raise FileExistsError('The training directory already exists')
 
-    for i in range(args.num_epochs):
+    for i in range(args.num_repeat_times):
         need_a2c_exp = not args.only_modified_a2c
         need_modified_a2c_exp = not args.only_a2c
 
@@ -47,12 +47,12 @@ def main():
             modified_a2c_exps_to_do = modified_a2c_exps.copy()
         else:
             modified_a2c_exps_to_do = None
-        while num_committed_exps < num_exps_each_epoch:
+        while num_committed_exps < num_exps_each_rep:
             new_available_gpu = GPUtil.getAvailable(
-                order='first', limit=num_exps_each_epoch, maxLoad=initial_max_load, maxMemory=initial_max_memory
+                order='first', limit=num_exps_each_rep, maxLoad=initial_max_load, maxMemory=initial_max_memory
             )
             if len(new_available_gpu) == 0:
-                if query_yes_no('No enough cards for one epoch (maxLoad={:.3}, maxMemory={:.3}), '
+                if query_yes_no('No enough cards for one repetition (maxLoad={:.3}, maxMemory={:.3}), '
                                 'would you like to increase limit?'.format(initial_max_load, initial_max_memory)):
                     initial_max_load += 0.1
                     initial_max_memory += 0.1
@@ -78,9 +78,9 @@ def main():
         if no_enough_cards:
             break
 
-        num_launched_epochs += 1
+        num_launched_reps += 1
 
-    print('{} training epochs has been successfully launched'.format(num_launched_epochs))
+    print('{} training repetition(s) successfully launched'.format(num_launched_reps))
 
 
 a2c_template = 'CUDA_VISIBLE_DEVICES={gpu_card} ' \
@@ -111,27 +111,27 @@ parser.add_argument('--env', type=str, help='The game environment', required=Tru
 parser.add_argument('--num_steps', type=float, help='The number of training steps', required=True)
 parser.add_argument('--lambda', dest='lambda_', metavar='LAMBDA', nargs='+', type=float, help='Hyper-parameter Lambda')
 parser.add_argument('--margin', nargs='+', type=float, help='Hyper-parameter Margin')
-parser.add_argument('--i', dest='i_before', nargs='+', type=int, help='Hyper-parameter i')
-parser.add_argument('--num_epochs', type=int, default=5, help='The number of training epochs')
+parser.add_argument('--alpha', dest='i_before', nargs='+', type=int, help='Hyper-parameter Alpha')
+parser.add_argument('--num_repeat_times', type=int, default=5, help='The number of repeat training times')
 gp = parser.add_mutually_exclusive_group()
 gp.add_argument('--only_modified_a2c', action='store_true', help='Whether only to run modified a2c experiment')
 gp.add_argument('--only_a2c', action='store_true', help='Whether only to run original a2c experiment')
 
 
-def execute_training(alg, gpu_card, parent_directory, num_epoch, config, lambda_=None, margin=None,
+def execute_training(alg, gpu_card, parent_directory, num_reps, config, lambda_=None, margin=None,
                      i_before=None):
     config = config.copy()
     config['alg'] = alg
     config['gpu_card'] = gpu_card
     if alg == 'a2c':
-        config['log_path'] = os.path.join(parent_directory, '_'.join([config['env'], alg, str(num_epoch)]))
+        config['log_path'] = os.path.join(parent_directory, '_'.join([config['env'], alg, str(num_reps)]))
         os.system(a2c_template.format(**config))
     elif alg == 'modified_a2c':
         config['log_path'] = os.path.join(
             parent_directory,
             '_'.join([
                 config['env'], alg, str(lambda_), str(margin), str(i_before),
-                str(num_epoch)
+                str(num_reps)
             ])
         )
         config['lambda_'] = lambda_
