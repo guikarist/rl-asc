@@ -240,7 +240,7 @@ def build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope="deepq", 
 
 def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=None, lambda_=0.1, margin=0.1,
                 gamma=1.0, double_q=True, scope="deepq", reuse=None, param_noise=False, param_noise_filter_func=None,
-                exploration_final_eps=0.1, modified_part=None):
+                exploration_final_eps=0.1):
     if param_noise:
         act_f, update_eps_ph = build_act_with_param_noise(
             make_obs_ph, q_func, num_actions, scope=scope, reuse=reuse,
@@ -297,23 +297,7 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
         f_error_2 = tf.reduce_sum(tf.square(f_features_tmi - f_features_tp1), 1)
         representation_loss = tf.reduce_mean(has_obs_tmi_mask_ph * tf.maximum(0., margin + f_error_1 - f_error_2))
 
-        if modified_part is not None:
-            if modified_part == 'before':
-                loss = tf.cond(
-                    tf.less(update_eps_ph - tf.Variable(exploration_final_eps), tf.Variable(0.0001)),
-                    lambda: weighted_error,
-                    lambda: weighted_error + lambda_ * representation_loss
-                )
-            elif modified_part == 'after':
-                loss = tf.cond(
-                    tf.less(update_eps_ph - tf.Variable(exploration_final_eps), tf.Variable(0.0001)),
-                    lambda: weighted_error + lambda_ * representation_loss,
-                    lambda: weighted_error
-                )
-            else:
-                raise ValueError("Invalid value of 'modified_part'")
-        else:
-            loss = weighted_error + lambda_ * representation_loss
+        loss = weighted_error + lambda_ * representation_loss
 
         # compute optimization op (potentially with gradient clipping)
         if grad_norm_clipping is not None:
