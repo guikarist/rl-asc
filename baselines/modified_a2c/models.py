@@ -83,17 +83,12 @@ def nature_cnn(unscaled_images, **conv_kwargs):
 
     h2 = tf.map_fn(h2_func, h)
 
-    def out_func(x): return conv(x, 'c3', nf=64, rf=3, stride=1, init_scale=np.sqrt(2), **conv_kwargs)
+    def out_func(x): return activ(conv(x, 'c3', nf=64, rf=3, stride=1, init_scale=np.sqrt(2), **conv_kwargs))
 
     out = tf.map_fn(out_func, h2)
 
-    def f_features_func(x): return tf.sigmoid(tf.layers.flatten(x))
-
-    f_features = tf.map_fn(f_features_func, out)
-
-    def h3_func(x): return conv_to_fc(activ(x))
-
-    h3 = tf.map_fn(h3_func, out)
+    f_features = tf.map_fn(tf.layers.flatten, out)
+    h3 = tf.map_fn(conv_to_fc, out)
 
     def h4_func(x): return activ(fc(x, 'fc1', nh=512, init_scale=np.sqrt(2)))
 
