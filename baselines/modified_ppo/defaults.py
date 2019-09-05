@@ -10,7 +10,7 @@ def mujoco():
         lr=lambda f: 3e-4 * f,
         cliprange=0.2,
         value_network='shared',
-        network='modified_mlp'
+        network='modified_mlp_v2'
     )
 
 
