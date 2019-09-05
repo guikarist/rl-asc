@@ -16,7 +16,7 @@ For example:
 python run_deepq_asc.py --env=PongNoFrameskip-v4 --num_steps=1e6 --lambda=0.1 --margin=0.3 --i=1 --num_epochs=5
 
 # PPO ASC
-python run_ppo_asc.py --env PongNoFrameskip-v4 --num_steps=1e6 --lambda=0.1 --margin=0.3 --i=1 --num_epochs=5
+python run_ppo_asc.py --env PongNoFrameskip-v4 --num_steps=1e7 --lambda=0.1 --margin=0.3 --i=1 --num_epochs=5
 
 # A2C ASC
 python run_a2c_asc.py --env PongNoFrameskip-v4 --num_steps=2e7 --lambda=0.1 --margin=0.3 --i=1 --num_epochs=5
