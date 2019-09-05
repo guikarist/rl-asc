@@ -1,6 +1,6 @@
 # RL ASC
 
-This repo contains codes that implement Paper **State Representation Learning for Effective Deep Reinforcement Learning**
+This repo contains codes that implement Paper _**State Representation Learning for Effective Deep Reinforcement Learning**_
 in AAAI 2020, which is based on a fork of OpenAI Baselines. The three new algorithms `deepq_asc`, `a2c_asc` and
 `ppo_asc` are modified from original `deepq`, `a2c` and `ppo2` respectively. Only some settings of the three original
 algorithms are modified. 
