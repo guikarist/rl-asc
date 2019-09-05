@@ -26,7 +26,6 @@ def main():
     config = {
         'env': args.env,
         'num_steps': args.num_steps,
-        'modified_part': args.modified_part,
         'network': args.network
     }
 
@@ -112,7 +111,6 @@ modified_dqn_template = 'CUDA_VISIBLE_DEVICES={gpu_card} ' \
                         '--prioritized_replay=False ' \
                         '--double_q=False ' \
                         '--print_freq=10 ' \
-                        '--modified_part={modified_part} ' \
                         '--network={network} ' \
                         '>/dev/null 2>&1 &'
 
@@ -124,8 +122,6 @@ parser.add_argument('--lambda', dest='lambda_', metavar='LAMBDA', nargs='+', typ
 parser.add_argument('--margin', nargs='+', type=float, help='Hyper-parameter Margin')
 parser.add_argument('--i', dest='i_before', nargs='+', type=int, help='Hyper-parameter i')
 parser.add_argument('--num_epochs', type=int, default=5, help='The number of training epochs')
-parser.add_argument('--modified_part', type=str, default=None, choices=['before', 'after'],
-                    help='The modified part of the whole learning process')
 gp = parser.add_mutually_exclusive_group()
 gp.add_argument('--only_modified_dqn', action='store_true', help='Whether only to run modified dqn experiment')
 gp.add_argument('--only_dqn', action='store_true', help='Whether only to run original dqn experiment')
@@ -143,7 +139,7 @@ def execute_training(alg, gpu_card, parent_directory, num_epoch, config, lambda_
         config['log_path'] = os.path.join(
             parent_directory,
             '_'.join([
-                config['env'], alg, str(lambda_), str(margin), str(i_before), str(config['modified_part']),
+                config['env'], alg, str(lambda_), str(margin), str(i_before),
                 str(config['network']), str(num_epoch)
             ])
         )
