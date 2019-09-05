@@ -148,8 +148,7 @@ def learn(env,
         gamma=gamma,
         grad_norm_clipping=10,
         param_noise=param_noise,
-        double_q=double_q,
-        exploration_final_eps=exploration_final_eps
+        double_q=double_q
     )
 
     act_params = {

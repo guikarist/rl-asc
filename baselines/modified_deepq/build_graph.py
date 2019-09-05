@@ -239,8 +239,7 @@ def build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope="deepq", 
 
 
 def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=None, lambda_=0.1, margin=0.1,
-                gamma=1.0, double_q=True, scope="deepq", reuse=None, param_noise=False, param_noise_filter_func=None,
-                exploration_final_eps=0.1):
+                gamma=1.0, double_q=True, scope="deepq", reuse=None, param_noise=False, param_noise_filter_func=None):
     if param_noise:
         act_f, update_eps_ph = build_act_with_param_noise(
             make_obs_ph, q_func, num_actions, scope=scope, reuse=reuse,
