@@ -74,11 +74,11 @@ For more details of installation , see [the original README](https://github.com/
 
 To run three new algorithms, you can just run entries whose names are `run_*_asc.py` in the root directory.
 
-For example, each of following commands will run both original algorithms and modified ones with ASC, each setting of
+For example, each of following commands will run both original algorithms and modified ones with ASC loss, each setting of
 which is repeated `num_repeat_times` times:
 
 ```shell script
-# DQN (which runs 5 original DQN experiments and 5 modified DQN experiments with ASC)
+# DQN (which runs 5 original DQN experiments and 5 modified DQN experiments with ASC loss)
 python run_deepq_asc.py --env=PongNoFrameskip-v4 --num_steps=1e6 --lambda=0.1 --margin=0.3 --alpha=1 --num_repeat_times=5
 
 # PPO
