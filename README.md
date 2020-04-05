@@ -1,8 +1,8 @@
 # RL ASC
 
-This repo contains codes that implement paper _**State Representation Learning for Effective Deep Reinforcement Learning**_
-in ICME 2020, which is based on a fork of OpenAI Baselines. The three new algorithms `deepq_asc`, `a2c_asc` and
-`ppo_asc` are modified from original `deepq`, `a2c` and `ppo2` respectively.
+This repo contains codes that implement RL algorithms with ASC loss, which are proposed in the paper _**State Representation Learning for Effective Deep Reinforcement Learning**_
+in ICME 2020. And the codes are based on a fork of OpenAI Baselines. The three new algorithms `deepq_asc`, `a2c_asc` and
+`ppo_asc` are modified from the original `deepq`, `a2c` and `ppo2` respectively.
 
 ## Prerequisites 
 Baselines requires python3 (>=3.5) with the development headers. You'll also need system packages CMake, OpenMPI and zlib. Those can be installed as follows
