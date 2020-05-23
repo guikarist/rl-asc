@@ -179,6 +179,8 @@ def learn(env,
     saved_mean_reward = None
     obs = env.reset()
     reset = True
+    trained = False
+    num_steps_per_episode = 0
     obses_before = deque(maxlen=i_before)
 
     with tempfile.TemporaryDirectory() as td:
@@ -233,6 +235,7 @@ def learn(env,
             obs = new_obs
 
             episode_rewards[-1] += rew
+            num_steps_per_episode += 1
             if done:
                 if 'episode' in info:
                     episode_scores.append(info['episode']['r'])
@@ -242,6 +245,8 @@ def learn(env,
                 obses_before.clear()
 
             if t > learning_starts and t % train_freq == 0:
+                trained = True
+
                 # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
                 if prioritized_replay:
                     raise NotImplementedError('The prioritized version of modified DQN is not implemented')
@@ -249,8 +254,8 @@ def learn(env,
                     obses_tmi, obses_t, actions, rewards, obses_tp1, dones, has_obs_tmis = replay_buffer.sample(
                         batch_size)
                     weights, batch_idxes = np.ones_like(rewards), None
-                td_errors = train(
-                    obses_tmi, obses_t, actions, rewards, obses_tp1, dones, has_obs_tmis, weights, exploration.value(t)
+                td_errors, min_delta_d, max_delta_d, delta_d, representation_loss, weighted_error = train(
+                    obses_tmi, obses_t, actions, rewards, obses_tp1, dones, has_obs_tmis, weights
                 )
                 if prioritized_replay:
                     raise NotImplementedError('The prioritized version of modified DQN is not implemented')
@@ -268,7 +273,17 @@ def learn(env,
                 logger.record_tabular("episodes", num_episodes)
                 logger.record_tabular("mean 100 episode reward", mean_100ep_reward)
                 logger.record_tabular("mean 100 episode scores", mean_100ep_scores)
+                logger.record_tabular("number of steps per episode", num_steps_per_episode)
                 logger.record_tabular("% time spent exploring", int(100 * exploration.value(t)))
+
+                if t > learning_starts and trained:
+                    # Log extra loss information
+                    logger.record_tabular("delta d", delta_d)
+                    logger.record_tabular("min delta d", min_delta_d)
+                    logger.record_tabular("max delta d", max_delta_d)
+                    logger.record_tabular("representation loss", representation_loss)
+                    logger.record_tabular("weighted error", weighted_error)
+
                 logger.dump_tabular()
 
             if (checkpoint_freq is not None and t > learning_starts and
@@ -280,6 +295,8 @@ def learn(env,
                     save_variables(model_file)
                     model_saved = True
                     saved_mean_reward = mean_100ep_reward
+            if done:
+                num_steps_per_episode = 0
         if model_saved:
             if print_freq is not None:
                 logger.log("Restored model with mean reward: {}".format(saved_mean_reward))

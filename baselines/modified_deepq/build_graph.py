@@ -103,7 +103,7 @@ def build_act(make_obs_ph, q_func, num_actions, scope="deepq", reuse=None):
         def act(ob, stochastic=True, update_eps=-1):
             return _act(ob, stochastic, update_eps)
 
-        return act, update_eps_ph
+        return act
 
 
 def build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope="deepq", reuse=None,
@@ -235,18 +235,18 @@ def build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope="deepq", 
                 update_eps=-1):
             return _act(ob, stochastic, update_eps, reset, update_param_noise_threshold, update_param_noise_scale)
 
-        return act, update_eps_ph
+        return act
 
 
 def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=None, lambda_=0.1, margin=0.1,
                 gamma=1.0, double_q=True, scope="deepq", reuse=None, param_noise=False, param_noise_filter_func=None):
     if param_noise:
-        act_f, update_eps_ph = build_act_with_param_noise(
+        act_f = build_act_with_param_noise(
             make_obs_ph, q_func, num_actions, scope=scope, reuse=reuse,
             param_noise_filter_func=param_noise_filter_func
         )
     else:
-        act_f, update_eps_ph = build_act(make_obs_ph, q_func, num_actions, scope=scope, reuse=reuse)
+        act_f = build_act(make_obs_ph, q_func, num_actions, scope=scope, reuse=reuse)
 
     with tf.variable_scope(scope, reuse=reuse):
         # set up placeholders
@@ -295,6 +295,9 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
         f_error_1 = tf.reduce_sum(tf.square(f_features_t - f_features_tp1), 1)
         f_error_2 = tf.reduce_sum(tf.square(f_features_tmi - f_features_tp1), 1)
         representation_loss = tf.reduce_mean(has_obs_tmi_mask_ph * tf.maximum(0., margin + f_error_1 - f_error_2))
+        max_delta_d = tf.reduce_max(has_obs_tmi_mask_ph * (f_error_1 - f_error_2))
+        delta_d = tf.reduce_mean(has_obs_tmi_mask_ph * (f_error_1 - f_error_2))
+        min_delta_d = tf.reduce_min(has_obs_tmi_mask_ph * (f_error_1 - f_error_2))
 
         loss = weighted_error + lambda_ * representation_loss
 
@@ -325,10 +328,9 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
                 obs_tp1_input,
                 done_mask_ph,
                 has_obs_tmi_mask_ph,
-                importance_weights_ph,
-                update_eps_ph
+                importance_weights_ph
             ],
-            outputs=[td_error],
+            outputs=[td_error, min_delta_d, max_delta_d, delta_d, representation_loss, weighted_error],
             updates=[optimize_expr]
         )
         update_target = U.function([], [], updates=[update_target_expr])
