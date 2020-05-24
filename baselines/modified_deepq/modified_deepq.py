@@ -225,12 +225,12 @@ def learn(env,
 
             # Store transition in the replay buffer.
             if len(obses_before) < obses_before.maxlen:
-                obses_before.append(new_obs)
+                obses_before.append(obs)
                 obs_tmi = np.zeros_like(obs)
                 replay_buffer.new_add(obs_tmi, obs, action, rew, new_obs, float(done), float(False))
             else:
                 obs_tmi = obses_before.popleft()
-                obses_before.append(new_obs)
+                obses_before.append(obs)
                 replay_buffer.new_add(obs_tmi, obs, action, rew, new_obs, float(done), float(True))
             obs = new_obs
 
