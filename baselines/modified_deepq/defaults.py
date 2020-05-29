@@ -1,6 +1,6 @@
 def atari():
     return dict(
-        network='modified_conv_only_v3',
+        network='modified_conv_only',
         lr=1e-4,
         buffer_size=10000,
         exploration_fraction=0.1,
