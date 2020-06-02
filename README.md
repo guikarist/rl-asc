@@ -78,12 +78,12 @@ For example, each of following commands will run both original algorithms and mo
 which is repeated `num_repeat_times` times:
 
 ```shell script
-# DQN (which runs 5 original DQN experiments and 5 modified DQN experiments with ASC loss)
-python run_deepq_asc.py --env=PongNoFrameskip-v4 --num_steps=1e6 --lambda=0.1 --margin=0.3 --alpha=1 --num_repeat_times=5
-
-# PPO
-python run_ppo_asc.py --env=PongNoFrameskip-v4 --num_steps=1e7 --lambda=0.1 --margin=0.3 --alpha=1 --num_repeat_times=5
+# DDQN (which runs 5 original DDQN experiments and 5 modified DDQN experiments with ASC loss)
+python run_deepq_asc.py --env=PongNoFrameskip-v4 --num_steps=1e6 --lambda=0.1 --margin=0.3 --alpha=1 --num_repeat_times=5 --double_q
 
 # A2C
 python run_a2c_asc.py --env=PongNoFrameskip-v4 --num_steps=2e7 --lambda=0.1 --margin=0.3 --alpha=1 --num_repeat_times=5
+
+# PPO
+python run_ppo_asc.py --env=PongNoFrameskip-v4 --num_steps=1e7 --lambda=0.1 --margin=0.3 --alpha=1 --num_repeat_times=5
 ```
