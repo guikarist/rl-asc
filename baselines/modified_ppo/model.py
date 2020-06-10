@@ -100,6 +100,7 @@ class Model(object):
 
         self.has_triplet_mask_ph = tf.placeholder(tf.float32, shape=[None], name="has_triplet")
         representation_loss = tf.reduce_mean(self.has_triplet_mask_ph * tf.maximum(0., margin + f_error_1 - f_error_2))
+        delta_d = tf.reduce_mean(self.has_triplet_mask_ph * (f_error_1 - f_error_2))
 
         # Total loss
         loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef + lambda_ * representation_loss
@@ -126,8 +127,8 @@ class Model(object):
         self.grads = grads
         self.var = var
         self._train_op = self.trainer.apply_gradients(grads_and_var)
-        self.loss_names = ['policy_loss', 'value_loss', 'repr_loss', 'policy_entropy', 'approxkl', 'clipfrac']
-        self.stats_list = [pg_loss, vf_loss, representation_loss, entropy, approxkl, clipfrac]
+        self.loss_names = ['policy_loss', 'value_loss', 'repr_loss', 'delta_d', 'policy_entropy', 'approxkl', 'clipfrac']
+        self.stats_list = [pg_loss, vf_loss, representation_loss, delta_d, entropy, approxkl, clipfrac]
 
         self.train_model = train_model
         self.act_model = act_model

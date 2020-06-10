@@ -61,6 +61,7 @@ class Model(object):
 
         has_triplet_mask_ph = tf.placeholder(tf.float32, [None], name="has_triplet")
         representation_loss = tf.reduce_mean(has_triplet_mask_ph * tf.maximum(0., margin + f_error_1 - f_error_2))
+        delta_d = tf.reduce_mean(has_triplet_mask_ph * (f_error_1 - f_error_2))
 
         loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef + lambda_ * representation_loss
 
@@ -102,11 +103,11 @@ class Model(object):
             if states is not None:
                 td_map[train_model.S] = states
                 td_map[train_model.M] = masks
-            policy_loss, value_loss, policy_entropy, _representation_loss, _ = sess.run(
-                [pg_loss, vf_loss, entropy, representation_loss, _train],
+            policy_loss, value_loss, policy_entropy, _representation_loss, _delta_d, _ = sess.run(
+                [pg_loss, vf_loss, entropy, representation_loss, delta_d, _train],
                 td_map
             )
-            return policy_loss, value_loss, policy_entropy, _representation_loss
+            return policy_loss, value_loss, policy_entropy, _representation_loss, _delta_d
 
         self.train = train
         self.train_model = train_model
@@ -189,7 +190,7 @@ def learn(
 
         has_triplet = np.logical_and(has_left_obs, has_right_obs).astype(float)
 
-        policy_loss, value_loss, policy_entropy, repr_loss = model.train(left_obs, obs, right_obs, states, rewards,
+        policy_loss, value_loss, policy_entropy, repr_loss, delta_d = model.train(left_obs, obs, right_obs, states, rewards,
                                                                          masks, actions,
                                                                          values, has_triplet)
 
@@ -207,6 +208,7 @@ def learn(
             logger.record_tabular("policy_entropy", float(policy_entropy))
             logger.record_tabular("value_loss", float(value_loss))
             logger.record_tabular("repr_loss", float(repr_loss))
+            logger.record_tabular("delta_d", float(delta_d))
             logger.record_tabular("explained_variance", float(ev))
             logger.record_tabular("eprewmean", safemean([epinfo['r'] for epinfo in epinfobuf]))
             logger.record_tabular("eplenmean", safemean([epinfo['l'] for epinfo in epinfobuf]))
