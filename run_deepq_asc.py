@@ -26,7 +26,9 @@ def main():
     config = {
         'env': args.env,
         'num_steps': args.num_steps,
-        'double_q': args.double_q
+        'double_q': args.double_q,
+        'dueling': args.dueling,
+        'prioritized_replay': args.prioritized_replay
     }
 
     parent_directory = os.path.join(
@@ -91,8 +93,8 @@ dqn_template = 'CUDA_VISIBLE_DEVICES={gpu_card} ' \
                '--env={env} ' \
                '--num_timesteps={num_steps} ' \
                '--log_path={log_path} ' \
-               '--dueling=False ' \
-               '--prioritized_replay=False ' \
+               '--dueling={dueling} ' \
+               '--prioritized_replay={prioritized_replay} ' \
                '--double_q={double_q} ' \
                '--print_freq=10 ' \
                '>/dev/null 2>&1 &'
@@ -107,8 +109,8 @@ modified_dqn_template = 'CUDA_VISIBLE_DEVICES={gpu_card} ' \
                         '--lambda_={lambda_} ' \
                         '--margin={margin} ' \
                         '--i_before={i_before} ' \
-                        '--dueling=False ' \
-                        '--prioritized_replay=False ' \
+                        '--dueling={dueling} ' \
+                        '--prioritized_replay={prioritized_replay} ' \
                         '--double_q={double_q} ' \
                         '--print_freq=10 ' \
                         '>/dev/null 2>&1 &'
@@ -121,6 +123,8 @@ parser.add_argument('--margin', nargs='+', type=float, help='Hyper-parameter Mar
 parser.add_argument('--alpha', dest='i_before', nargs='+', type=int, help='Hyper-parameter Alpha')
 parser.add_argument('--num_repeat_times', type=int, default=5, help='The number of repeat training times')
 parser.add_argument('--double_q', action='store_true', help='Whether to run the Double-DQN version')
+parser.add_argument('--dueling', action='store_true', help='Whether to run the Dueling DQN version')
+parser.add_argument('--prioritized_replay', action='store_true', help='Whether to run DQN with PER')
 gp = parser.add_mutually_exclusive_group()
 gp.add_argument('--only_modified_dqn', action='store_true', help='Whether only to run modified dqn experiment')
 gp.add_argument('--only_dqn', action='store_true', help='Whether only to run original dqn experiment')

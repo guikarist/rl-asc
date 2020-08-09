@@ -219,3 +219,14 @@ class ModifiedReplayBuffer(ReplayBuffer):
             has_obs_tmis.append(has_obs_tmi)
         return np.array(obses_tmi), np.array(obses_t), np.array(actions), np.array(rewards), \
                np.array(obses_tp1), np.array(dones), np.array(has_obs_tmis)
+
+
+class ModifiedPrioritizedReplayBuffer(ModifiedReplayBuffer, PrioritizedReplayBuffer):
+    def add(self, *args, **kwargs):
+        raise AttributeError('This method is no longer used by ', __class__.__name__)
+
+    def new_add(self, *args, **kwargs):
+        idx = self._next_idx
+        super().new_add(*args, **kwargs)
+        self._it_sum[idx] = self._max_priority ** self._alpha
+        self._it_min[idx] = self._max_priority ** self._alpha

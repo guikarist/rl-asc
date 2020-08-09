@@ -14,7 +14,7 @@ from baselines.common.schedules import LinearSchedule
 from baselines.common import set_global_seeds
 
 from baselines import modified_deepq
-from baselines.modified_deepq.replay_buffer import ModifiedReplayBuffer
+from baselines.modified_deepq.replay_buffer import ModifiedReplayBuffer, ModifiedPrioritizedReplayBuffer
 from baselines.modified_deepq.utils import ObservationInput
 
 from baselines.common.tf_util import get_session
@@ -161,7 +161,12 @@ def learn(env,
 
     # Create the replay buffer
     if prioritized_replay:
-        raise NotImplementedError('The prioritized version of modified DQN is not implemented')
+        replay_buffer = ModifiedPrioritizedReplayBuffer(buffer_size, alpha=prioritized_replay_alpha)
+        if prioritized_replay_beta_iters is None:
+            prioritized_replay_beta_iters = total_timesteps
+        beta_schedule = LinearSchedule(prioritized_replay_beta_iters,
+                                       initial_p=prioritized_replay_beta0,
+                                       final_p=1.0)
     else:
         replay_buffer = ModifiedReplayBuffer(buffer_size)
         beta_schedule = None
@@ -249,7 +254,8 @@ def learn(env,
 
                 # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
                 if prioritized_replay:
-                    raise NotImplementedError('The prioritized version of modified DQN is not implemented')
+                    experience = replay_buffer.sample(batch_size, beta=beta_schedule.value(t))
+                    obses_tmi, obses_t, actions, rewards, obses_tp1, dones, has_obs_tmis, weights, batch_idxes = experience
                 else:
                     obses_tmi, obses_t, actions, rewards, obses_tp1, dones, has_obs_tmis = replay_buffer.sample(
                         batch_size)
@@ -258,7 +264,8 @@ def learn(env,
                     obses_tmi, obses_t, actions, rewards, obses_tp1, dones, has_obs_tmis, weights
                 )
                 if prioritized_replay:
-                    raise NotImplementedError('The prioritized version of modified DQN is not implemented')
+                    new_priorities = np.abs(td_errors) + prioritized_replay_eps
+                    replay_buffer.update_priorities(batch_idxes, new_priorities)
 
             if t > learning_starts and t % target_network_update_freq == 0:
                 # Update target network periodically.
