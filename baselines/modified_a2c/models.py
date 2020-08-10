@@ -12,6 +12,14 @@ def cnn(**conv_kwargs):
     return network_fn
 
 
+@register("modified_cnn_v2")
+def cnn_v2(**conv_kwargs):
+    def network_fn(X):
+        return nature_cnn_v2(X, **conv_kwargs)
+
+    return network_fn
+
+
 @register("modified_mlp")
 def mlp(num_layers=2, num_hidden=64, activation=tf.tanh, layer_norm=False):
     def network_fn(X):
@@ -95,3 +103,14 @@ def nature_cnn(unscaled_images, **conv_kwargs):
     h4 = tf.map_fn(h4_func, h3)
 
     return h4, f_features
+
+
+def nature_cnn_v2(unscaled_images, **conv_kwargs):
+    scaled_images = tf.cast(unscaled_images, tf.float32) / 255.
+    activ = tf.nn.relu
+    h = activ(conv(scaled_images, 'c1', nf=32, rf=8, stride=4, init_scale=np.sqrt(2),
+                   **conv_kwargs))
+    h2 = activ(conv(h, 'c2', nf=64, rf=4, stride=2, init_scale=np.sqrt(2), **conv_kwargs))
+    out = activ(conv(h2, 'c3', nf=64, rf=3, stride=1, init_scale=np.sqrt(2), **conv_kwargs))
+    h3 = conv_to_fc(out)
+    return activ(fc(h3, 'fc1', nh=512, init_scale=np.sqrt(2))), tf.layers.flatten(out)

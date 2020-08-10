@@ -12,7 +12,7 @@ import tensorflow as tf
 
 
 class ModifiedPolicyWithValue(object):
-    def __init__(self, env, observations, latents, f_features, estimate_q=False, vf_latents=None, sess=None, **tensors):
+    def __init__(self, env, observations, latent, f_features, estimate_q=False, vf_latent=None, sess=None, **tensors):
         self.Xs = observations
         self.X = observations[1]
         self.f_features = f_features
@@ -21,15 +21,15 @@ class ModifiedPolicyWithValue(object):
         self.initial_state = None
         self.__dict__.update(tensors)
 
-        vf_latents = vf_latents if vf_latents is not None else latents
+        vf_latent = vf_latent if vf_latent is not None else latent
 
-        vf_latents = tf.layers.flatten(vf_latents[1])
-        latents = tf.layers.flatten(latents[1])
+        vf_latent = tf.layers.flatten(vf_latent)
+        latent = tf.layers.flatten(latent)
 
         # Based on the action space, will select what probability distribution type
         self.pdtype = make_pdtype(env.action_space)
 
-        self.pd, self.pi = self.pdtype.pdfromlatent(latents, init_scale=0.01)
+        self.pd, self.pi = self.pdtype.pdfromlatent(latent, init_scale=0.01)
 
         # Take an action
         self.action = self.pd.sample()
@@ -40,10 +40,10 @@ class ModifiedPolicyWithValue(object):
 
         if estimate_q:
             assert isinstance(env.action_space, gym.spaces.Discrete)
-            self.q = fc(vf_latents, 'q', env.action_space.n)
+            self.q = fc(vf_latent, 'q', env.action_space.n)
             self.vf = self.q
         else:
-            self.vf = fc(vf_latents, 'vf', 1)
+            self.vf = fc(vf_latent, 'vf', 1)
             self.vf = self.vf[:, 0]
 
     def _evaluate(self, variables, observation, **extra_feed):
@@ -88,29 +88,30 @@ def build_policy(env, policy_network='', value_network=None, normalize_observati
 
         extra_tensors = {}
 
-        if normalize_observations and Xs.dtype == tf.float32:
-            raise NotImplementedError
-        else:
-            encoded_x = Xs
+        encoded_x_0 = encode_observation(ob_space, Xs[0])
+        encoded_x_1 = encode_observation(ob_space, Xs[1])
+        encoded_x_2 = encode_observation(ob_space, Xs[2])
 
-        encoded_x = encode_observation(ob_space, encoded_x)
-
-        with tf.variable_scope('pi', reuse=tf.AUTO_REUSE):
-            policy_latents, f_features = policy_network(encoded_x)
+        with tf.variable_scope('pi'):
+            _, f_features_0 = policy_network(encoded_x_0)
+        with tf.variable_scope('pi', reuse=True):
+            policy_latent, f_features_1 = policy_network(encoded_x_1)
+        with tf.variable_scope('pi', reuse=True):
+            _, f_features_2 = policy_network(encoded_x_2)
 
         _v_net = value_network
 
         if _v_net is None or _v_net == 'shared':
-            vf_latents = policy_latents
+            vf_latent = policy_latent
         else:
             raise NotImplementedError
 
         policy = ModifiedPolicyWithValue(
             env=env,
             observations=Xs,
-            latents=policy_latents,
-            f_features=f_features,
-            vf_latents=vf_latents,
+            latent=policy_latent,
+            f_features=[f_features_0, f_features_1, f_features_2],
+            vf_latent=vf_latent,
             sess=sess,
             estimate_q=estimate_q,
             **extra_tensors

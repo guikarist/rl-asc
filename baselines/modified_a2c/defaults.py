@@ -1,6 +1,6 @@
 def atari():
     return dict(
-        network='modified_cnn'
+        network='modified_cnn_v2'
     )
 
 
