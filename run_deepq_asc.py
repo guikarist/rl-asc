@@ -93,6 +93,7 @@ dqn_template = 'CUDA_VISIBLE_DEVICES={gpu_card} ' \
                '--env={env} ' \
                '--num_timesteps={num_steps} ' \
                '--log_path={log_path} ' \
+               '--save_path={log_path}/model ' \
                '--dueling={dueling} ' \
                '--prioritized_replay={prioritized_replay} ' \
                '--double_q={double_q} ' \
@@ -106,6 +107,7 @@ modified_dqn_template = 'CUDA_VISIBLE_DEVICES={gpu_card} ' \
                         '--env={env} ' \
                         '--num_timesteps={num_steps} ' \
                         '--log_path={log_path} ' \
+                        '--save_path={log_path}/model ' \
                         '--lambda_={lambda_} ' \
                         '--margin={margin} ' \
                         '--i_before={i_before} ' \

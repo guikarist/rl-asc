@@ -90,6 +90,7 @@ acktr_template = 'CUDA_VISIBLE_DEVICES={gpu_card} ' \
                '--env={env} ' \
                '--num_timesteps={num_steps} ' \
                '--log_path={log_path} ' \
+               '--save_path={log_path}/model ' \
                '--log_interval=10 ' \
                '>/dev/null 2>&1 &'
 
@@ -100,6 +101,7 @@ modified_acktr_template = 'CUDA_VISIBLE_DEVICES={gpu_card} ' \
                         '--env={env} ' \
                         '--num_timesteps={num_steps} ' \
                         '--log_path={log_path} ' \
+                        '--save_path={log_path}/model ' \
                         '--lambda_={lambda_} ' \
                         '--margin={margin} ' \
                         '--i_before={i_before} ' \
