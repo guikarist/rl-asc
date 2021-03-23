@@ -1,7 +1,7 @@
 # RL ASC
 
-This repo contains codes that implement RL algorithms with ASC loss, which are proposed in the paper _**State Representation Learning for Effective Deep Reinforcement Learning**_
-in ICME 2020. And the codes are based on a fork of OpenAI Baselines. The three new algorithms `deepq_asc`, `a2c_asc` and
+This repo contains codes that implement RL algorithms with ASC loss, which are proposed in the paper _**State Representation Learning with Adjacent State Consistency Loss for Deep Reinforcement Learning**_
+in IEEE Multimedia [[pdf](https://ieeexplore.ieee.org/document/9336213)]. And the codes are based on a fork of OpenAI Baselines. The three new algorithms `deepq_asc`, `a2c_asc` and
 `ppo_asc` are modified from the original `deepq`, `a2c` and `ppo2` respectively.
 
 ## Prerequisites 
